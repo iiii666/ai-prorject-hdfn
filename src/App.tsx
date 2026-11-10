@@ -1,3 +1,4 @@
+import CustomAnalysis from "./CustomAnalysis";
 import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
@@ -35,6 +36,7 @@ const icons = {
   catalog: Database,
   lineage: Network,
   settings: SettingsIcon,
+  custom: Sparkles,
 };
 const getPage = (): Page =>
   Object.hasOwn(pageNames, location.hash.slice(1))
@@ -50,6 +52,7 @@ const descriptions: Record<Page, string> = {
   budget: "부문별 배정 예산, 집행 내역과 매출 목표를 비교합니다.",
   catalog: "SQLite 테이블과 SQL 뷰의 스키마·행 수를 조회합니다.",
   lineage: "실제 SQL 뷰의 데이터 흐름과 영향 범위를 확인합니다.",
+  custom: "DW 데이터에 질문하고 OpenAI 분석과 매출 시나리오를 확인합니다.",
   settings: "DB에 저장되는 워크스페이스 설정과 데이터 정보를 관리합니다.",
 };
 function Dialog({
@@ -121,7 +124,9 @@ export default function App() {
     revision,
   );
   const catalog = useApi<Catalog>(bootstrap ? "/api/catalog" : null, revision);
-  const analyticPage = !["catalog", "lineage", "settings"].includes(page);
+  const analyticPage = !["catalog", "lineage", "settings", "custom"].includes(
+    page,
+  );
   useEffect(() => {
     const controller = new AbortController();
     request<Bootstrap>("/api/bootstrap", { signal: controller.signal })
@@ -254,7 +259,9 @@ export default function App() {
             return (
               <div key={p}>
                 {i === 1 && <div className="nav-label">비즈니스 분석</div>}
-                {i === 6 && <div className="nav-label">데이터 관리</div>}
+                {p === "catalog" && (
+                  <div className="nav-label">데이터 관리</div>
+                )}
                 <button
                   className={`nav-item ${page === p ? "active" : ""}`}
                   onClick={() => navigate(p)}
@@ -500,7 +507,9 @@ export default function App() {
                   <div className="range-note">
                     비교 기간 {analysis.data.range.previousStart} ~{" "}
                     {analysis.data.range.previousEnd} · 샘플 보유 기간{" "}
-                    {bootstrap.seed.start_date} ~ {bootstrap.seed.end_date}
+                    {bootstrap.seed.start_date} ~ {bootstrap.seed.end_date}{" "}
+                    {bootstrap.operationalStart &&
+                      `· 앱/캠페인/예산: ${bootstrap.operationalStart} 이후`}
                   </div>
                   {analysis.data.summary.orders === 0 && (
                     <div className="definition-note">
@@ -551,6 +560,7 @@ export default function App() {
                 />
               ))
             ))}
+          {page === "custom" && <CustomAnalysis bootstrap={bootstrap} />}
           {page === "settings" && (
             <SettingsPage
               bootstrap={bootstrap}

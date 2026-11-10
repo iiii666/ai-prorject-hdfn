@@ -1,3 +1,8 @@
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
+if (existsSync(new URL("../.env", import.meta.url)))
+  loadEnvFile(new URL("../.env", import.meta.url));
+import { customAnalysis, customStatus, AnalysisError } from "./custom.mjs";
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
@@ -35,6 +40,24 @@ export const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     const p = url.pathname;
+    if (p === "/api/custom/status" && req.method === "GET")
+      return json(res, customStatus());
+    if (p === "/api/custom/analyze" && req.method === "POST") {
+      const origin = req.headers.origin;
+      if (origin && origin !== `http://${req.headers.host}`)
+        return json(
+          res,
+          { error: "같은 사이트에서만 분석을 요청할 수 있습니다." },
+          403,
+        );
+      try {
+        return json(res, await customAnalysis(await body(req)));
+      } catch (e) {
+        if (e instanceof AnalysisError)
+          return json(res, { error: e.message }, e.status);
+        throw e;
+      }
+    }
     if (p === "/api/health" && req.method === "GET")
       return json(res, {
         status: "ok",

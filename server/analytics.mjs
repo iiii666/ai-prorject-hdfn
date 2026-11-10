@@ -14,6 +14,9 @@ export function bootstrap() {
     channels: ["모바일 앱", "오프라인"],
     seed: one("SELECT * FROM seed_info"),
     settings: settings(),
+    operationalStart: one(
+      "SELECT value FROM settings WHERE key='operationalStart'",
+    )?.value,
   };
 }
 export function filters(params) {

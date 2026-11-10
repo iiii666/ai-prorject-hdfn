@@ -11,6 +11,7 @@ export type Bootstrap = {
   channels: string[];
   seed: Seed;
   settings: Settings;
+  operationalStart?: string;
 };
 export type Campaign = {
   id: number;

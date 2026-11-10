@@ -7,7 +7,8 @@ export type Page =
   | "budget"
   | "catalog"
   | "lineage"
-  | "settings";
+  | "settings"
+  | "custom";
 export const pageNames: Record<Page, string> = {
   overview: "통합 현황",
   customers: "고객 분석",
@@ -15,6 +16,7 @@ export const pageNames: Record<Page, string> = {
   campaigns: "캠페인 성과",
   app: "앱 이용 현황",
   budget: "예산·실적",
+  custom: "커스텀 분석",
   catalog: "데이터 카탈로그",
   lineage: "데이터 리니지",
   settings: "관리자 설정",

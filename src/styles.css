@@ -1780,3 +1780,123 @@ button:disabled {
     padding: 10px 5px;
   }
 }
+.custom-form {
+  padding: 20px;
+}
+.custom-form .query-filters {
+  padding: 0;
+  border: 0;
+}
+.question-label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #627997;
+  font-size: 12px;
+  margin: 20px 0 12px;
+}
+.question-label textarea {
+  font: inherit;
+  color: #294361;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 110px;
+  padding: 14px;
+  line-height: 1.9;
+  width: 100%;
+}
+.question-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.analysis-error {
+  padding: 15px;
+  background: #fff0f2;
+  color: #c7445d;
+  border: 1px solid #f8cbd4;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.result-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 25px 0 15px;
+  flex-wrap: wrap;
+}
+.result-heading h2 {
+  font-size: 18px;
+}
+.forecast-chart {
+  height: 340px;
+  padding: 15px 10px;
+  font-size: 10px;
+}
+.report-body {
+  padding: 20px;
+  color: #647c9c;
+  font-size: 12px;
+  line-height: 2;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.report-body h3 {
+  margin: 18px 0 8px;
+  color: #314a6d;
+  font-size: 14px;
+}
+.event-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+.event-grid article {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 17px;
+}
+.event-grid small {
+  color: #8a73c2;
+}
+.custom-analysis > .definition-note {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.custom-analysis > .definition-note svg {
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .event-grid {
+    grid-template-columns: 1fr;
+  }
+  .question-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .custom-form {
+    padding: 14px;
+  }
+  .forecast-chart {
+    height: 280px;
+  }
+  .custom-form .query-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .custom-analysis .kpi-value {
+    font-size: 18px;
+  }
+}
+
+.custom-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
