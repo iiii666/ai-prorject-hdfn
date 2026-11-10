@@ -1,3 +1,5 @@
+import EvidencePanel from "./EvidencePanel";
+import type { Breakdown } from "./EvidencePanel";
 import { useState } from "react";
 import { Sparkles, ShieldCheck } from "lucide-react";
 import {
@@ -43,6 +45,7 @@ type Result = {
     cautions: string[];
   };
   evidence: {
+    breakdown?: Breakdown;
     year: number;
     targetYear: number;
     uplift: number;
@@ -225,7 +228,7 @@ export default function CustomAnalysis({
                 </fieldset>
                 <div className="question-actions">
                   <span className="muted">
-                    {question.length}/1,000자 · 분석에 최대 약 90초가 걸릴 수
+                    {question.length}/1,000자 · 분석에 최대 약 135초가 걸릴 수
                     있습니다.
                   </span>
                   <button className="primary" disabled={loading}>
@@ -290,6 +293,12 @@ export default function CustomAnalysis({
                     note="인과 효과 추정이 아닌 가정"
                   />
                 </div>
+                {result.evidence.breakdown && (
+                  <EvidencePanel
+                    data={result.evidence.breakdown}
+                    months={result.evidence.monthly}
+                  />
+                )}
                 <Panel
                   title="다음 연도 월별 매출 시나리오"
                   aside={

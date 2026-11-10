@@ -1900,3 +1900,43 @@ button:disabled {
   margin: 0;
   min-width: 0;
 }
+.source-caption {
+  font-size: 10px;
+  color: #8296b1;
+  line-height: 1.9;
+  padding: 12px 18px;
+}
+.evidence-panel .definition-note {
+  margin: 16px 18px 0;
+  font-size: 12px;
+}
+.evidence-panel .definition-note strong {
+  margin: 0 4px;
+  color: #2e65dd;
+}
+.evidence-subtitle {
+  padding: 18px;
+  font-size: 12px;
+  color: #4a6387;
+  border-top: 1px solid var(--line);
+}
+.category-chart {
+  height: 215px;
+  padding: 18px 12px 0;
+  font-size: 10px;
+}
+.evidence-details {
+  margin-bottom: 20px;
+}
+.evidence-details summary {
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #637f9f;
+  cursor: pointer;
+  font-size: 12px;
+}
+.evidence-details[open] summary {
+  margin-bottom: 15px;
+}

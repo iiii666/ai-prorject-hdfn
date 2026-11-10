@@ -2,8 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 process.env.DW_DB_PATH = ":memory:";
 process.env.DW_SEED_END = "2026-11-10";
-const { customAnalysis, forecast, guardQuestion, openAI, customStatus } =
-  await import("../server/custom.mjs");
+const {
+  customAnalysis,
+  forecast,
+  guardQuestion,
+  openAI,
+  customStatus,
+  contradictsStoreEvidence,
+} = await import("../server/custom.mjs");
 const { one } = await import("../server/db.mjs");
 const input = {
   question: "2026년 매출로 내년 이벤트를 추천하고 예상 매출을 분석해 줘",
@@ -109,6 +115,10 @@ test("allowed question returns computed evidence; LLM has no SQL tools or custom
       calls++;
       if (calls === 1) return { allowed: true, reason: "DW 매출 분석" };
       assert.ok(data.evidence.monthly.length === 12);
+      assert.equal(data.evidence.breakdown.byStore.length, 3);
+      assert.ok(data.evidence.breakdown.byCategory.length > 0);
+      assert.ok(data.evidence.breakdown.campaigns[0].conversion >= 0);
+      assert.ok(system.includes("매출이 없다고 답하지"));
       assert.equal(JSON.stringify(data).includes("샘플고객"), false);
       return valid;
     },
@@ -163,5 +173,45 @@ test("Responses API integration uses structured output and sanitizes upstream er
       json: async () => ({ output: [{ content: [{ type: "refusal" }] }] }),
     })),
     (e) => e.status === 502,
+  );
+});
+
+test("known missing-store contradiction is corrected once using the same DB evidence", async () => {
+  let calls = 0;
+  const result = await customAnalysis(
+    { ...input, question: "2026년 매출 1위 점포를 알려줘" },
+    {
+      call: async () => {
+        calls++;
+        if (calls === 1) return { allowed: true };
+        if (calls === 2)
+          return {
+            ...valid,
+            summary: "점포별 매출 데이터가 없어 확인할 수 없습니다.",
+          };
+        return {
+          ...valid,
+          summary: "점포별 매출 순위는 제공된 집계로 확인할 수 있습니다.",
+          events: [],
+        };
+      },
+    },
+  );
+  assert.equal(calls, 3);
+  assert.equal(result.report.events.length, 0);
+  const evidence = forecast(input);
+  assert.equal(
+    contradictsStoreEvidence(
+      { summary: "점포별 매출 구분이 없어 확인 불가" },
+      evidence,
+    ),
+    true,
+  );
+  assert.equal(
+    contradictsStoreEvidence(
+      { summary: "12월 실적은 미보유입니다." },
+      evidence,
+    ),
+    false,
   );
 });
