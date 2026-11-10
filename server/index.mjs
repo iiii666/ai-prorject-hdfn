@@ -1,13 +1,10 @@
-import { existsSync } from "node:fs";
-import { loadEnvFile } from "node:process";
-if (existsSync(new URL("../.env", import.meta.url)))
-  loadEnvFile(new URL("../.env", import.meta.url));
+import "./config.mjs";
 import { customAnalysis, customStatus, AnalysisError } from "./custom.mjs";
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { db, one } from "./db.mjs";
+import { one, initialize, close, transaction, databaseEngine } from "./db.mjs";
 import {
   bootstrap,
   filters,
@@ -41,37 +38,48 @@ export const server = createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     const p = url.pathname;
     if (p === "/api/custom/status" && req.method === "GET")
-      return json(res, customStatus());
+      return json(res, await customStatus());
     if (p === "/api/custom/analyze" && req.method === "POST") {
       const origin = req.headers.origin;
       if (origin && origin !== `http://${req.headers.host}`)
         return json(
           res,
-          { error: "같은 사이트에서만 분석을 요청할 수 있습니다." },
+          {
+            error: "같은 사이트에서만 분석을 요청할 수 있습니다.",
+          },
           403,
         );
       try {
         return json(res, await customAnalysis(await body(req)));
       } catch (e) {
         if (e instanceof AnalysisError)
-          return json(res, { error: e.message }, e.status);
+          return json(
+            res,
+            {
+              error: e.message,
+            },
+            e.status,
+          );
         throw e;
       }
     }
     if (p === "/api/health" && req.method === "GET")
       return json(res, {
         status: "ok",
-        database: "SQLite",
-        seed: one("SELECT * FROM seed_info"),
+        database: databaseEngine,
+        seed: await one("SELECT * FROM seed_info"),
       });
     if (p === "/api/bootstrap" && req.method === "GET")
-      return json(res, bootstrap());
+      return json(res, await bootstrap());
     if (p === "/api/analytics" && req.method === "GET")
-      return json(res, analytics(filters(url.searchParams)));
+      return json(res, await analytics(await filters(url.searchParams)));
     if (p === "/api/catalog" && req.method === "GET")
-      return json(res, catalog());
+      return json(res, await catalog());
     if (p === "/api/orders" && req.method === "GET")
-      return json(res, orderList(filters(url.searchParams), url.searchParams));
+      return json(
+        res,
+        await orderList(await filters(url.searchParams), url.searchParams),
+      );
     if (p === "/api/settings" && req.method === "PATCH") {
       const data = await body(req);
       if (
@@ -84,20 +92,20 @@ export const server = createServer(async (req, res) => {
         throw new Error(
           "400:이름은 1~50자, 알림 설정은 true/false여야 합니다.",
         );
-      db.exec("BEGIN");
-      try {
-        const stmt = db.prepare("UPDATE settings SET value=? WHERE key=?");
-        stmt.run(data.workspaceName.trim(), "workspaceName");
-        stmt.run(String(data.alertsEnabled), "alertsEnabled");
-        db.exec("COMMIT");
-      } catch (e) {
-        db.exec("ROLLBACK");
-        throw e;
-      }
-      return json(res, settings());
+      await transaction(async (tx) => {
+        await tx.run("UPDATE settings SET value=? WHERE key=?", [
+          data.workspaceName.trim(),
+          "workspaceName",
+        ]);
+        await tx.run("UPDATE settings SET value=? WHERE key=?", [
+          String(data.alertsEnabled),
+          "alertsEnabled",
+        ]);
+      });
+      return json(res, await settings());
     }
     if (p === "/api/export" && req.method === "GET") {
-      const d = analytics(filters(url.searchParams));
+      const d = await analytics(await filters(url.searchParams));
       const rows = [
         ["항목", "값", "시작일", "종료일", "점포 ID", "채널"],
         ...Object.entries({
@@ -136,12 +144,30 @@ export const server = createServer(async (req, res) => {
       );
     }
     if (p.startsWith("/api/"))
-      return json(res, { error: "API 경로 또는 메서드를 확인하세요." }, 404);
+      return json(
+        res,
+        {
+          error: "API 경로 또는 메서드를 확인하세요.",
+        },
+        404,
+      );
     if (req.method !== "GET" && req.method !== "HEAD")
-      return json(res, { error: "지원하지 않는 요청입니다." }, 405);
+      return json(
+        res,
+        {
+          error: "지원하지 않는 요청입니다.",
+        },
+        405,
+      );
     let path = resolve(dist, "." + decodeURIComponent(p));
     if (!path.startsWith(dist + sep) && path !== dist)
-      return json(res, { error: "잘못된 경로입니다." }, 400);
+      return json(
+        res,
+        {
+          error: "잘못된 경로입니다.",
+        },
+        400,
+      );
     try {
       if (!(await stat(path)).isFile()) path = resolve(dist, "index.html");
     } catch {
@@ -186,10 +212,24 @@ export const server = createServer(async (req, res) => {
     );
   }
 });
+try {
+  await initialize();
+} catch (e) {
+  console.error(
+    "MySQL 연결/초기화 실패. Docker Desktop 실행 후 npm run db:up 및 DB 접속 설정을 확인하세요. 코드:",
+    e.code || e.name,
+  );
+  await close();
+  throw new Error("MySQL 초기화에 실패했습니다.");
+}
 const port = Number(process.env.PORT || 3001);
 server.listen(port, "127.0.0.1", () => {
-  console.log(`DW API + SQLite: http://localhost:${server.address().port}`);
-  process.send?.({ type: "dw-ready" });
+  console.log(
+    `DW API + ${databaseEngine}: http://localhost:${server.address().port}`,
+  );
+  process.send?.({
+    type: "dw-ready",
+  });
 });
 server.on("error", (e) => {
   console.error(
@@ -201,8 +241,8 @@ server.on("error", (e) => {
 });
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () =>
-    server.close(() => {
-      db.close();
+    server.close(async () => {
+      await close();
       process.exit(0);
     }),
   );

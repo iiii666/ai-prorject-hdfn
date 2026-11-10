@@ -1,26 +1,26 @@
-import { all, one, db, dateAdd } from "./db.mjs";
+import { all, one, tableNames, columns, countRows, dateAdd } from "./db.mjs";
 export const ratio = (n, d) => (d ? +((n / d) * 100).toFixed(2) : null);
 export const change = (a, b) => (b ? +(((a - b) / b) * 100).toFixed(2) : null);
-export const settings = () =>
+export const settings = async () =>
   Object.fromEntries(
-    all("SELECT key,value FROM settings").map((r) => [
+    (await all("SELECT key,value FROM settings")).map((r) => [
       r.key,
       r.key === "alertsEnabled" ? r.value === "true" : r.value,
     ]),
   );
-export function bootstrap() {
+export async function bootstrap() {
   return {
-    stores: all("SELECT * FROM stores"),
+    stores: await all("SELECT * FROM stores"),
     channels: ["모바일 앱", "오프라인"],
-    seed: one("SELECT * FROM seed_info"),
-    settings: settings(),
-    operationalStart: one(
-      "SELECT value FROM settings WHERE key='operationalStart'",
+    seed: await one("SELECT * FROM seed_info"),
+    settings: await settings(),
+    operationalStart: (
+      await one("SELECT value FROM settings WHERE key='operationalStart'")
     )?.value,
   };
 }
-export function filters(params) {
-  const seed = one("SELECT * FROM seed_info");
+export async function filters(params) {
+  const seed = await one("SELECT * FROM seed_info");
   const days = Number(params.get("days") || 30);
   if (!Number.isInteger(days) || days < 1 || days > 365)
     throw new Error("400:조회 기간은 1~365일이어야 합니다.");
@@ -41,7 +41,7 @@ export function filters(params) {
     channel = params.get("channel") || "";
   if (
     store &&
-    !all("SELECT id FROM stores").some((s) => String(s.id) === store)
+    !(await all("SELECT id FROM stores")).some((s) => String(s.id) === store)
   )
     throw new Error("400:존재하지 않는 점포입니다.");
   if (channel && !["모바일 앱", "오프라인"].includes(channel))
@@ -66,16 +66,16 @@ function scope(f, alias = "") {
     ],
   };
 }
-function summary(f, start = f.start, end = f.end) {
+async function summary(f, start = f.start, end = f.end) {
   const q = scope(f);
-  return one(
+  return await one(
     `SELECT COALESCE(SUM(amount),0) sales,COUNT(*) orders,COUNT(DISTINCT customer_id) activeCustomers FROM dw_fact_orders WHERE ordered_at BETWEEN ? AND ?${q.sql}`,
     [start, end, ...q.args],
   );
 }
-function customerMetrics(f, start = f.start, end = f.end) {
+async function customerMetrics(f, start = f.start, end = f.end) {
   const q = scope(f);
-  const rows = all(
+  const rows = await all(
     `SELECT c.id,c.grade,MIN(o.ordered_at) firstDate,MAX(o.ordered_at) lastDate,COUNT(*) lifetimeOrders,SUM(CASE WHEN o.ordered_at BETWEEN ? AND ? THEN 1 ELSE 0 END) periodOrders,SUM(CASE WHEN o.ordered_at BETWEEN ? AND ? THEN o.amount ELSE 0 END) periodSales FROM dw_fact_orders o JOIN customers c ON c.id=o.customer_id WHERE o.ordered_at<=?${q.sql} GROUP BY c.id`,
     [start, end, start, end, end, ...q.args],
   );
@@ -118,44 +118,50 @@ function customerMetrics(f, start = f.start, end = f.end) {
     ],
   };
 }
-function campaignMetrics(f) {
+async function campaignMetrics(f) {
   const q = scope(f, "t"),
     sp = scope(f);
-  return all(
-    "SELECT * FROM campaigns WHERE start_date<=? AND end_date>=?" +
-      (f.channel ? " AND channel=?" : ""),
-    [f.end, f.start, ...(f.channel ? [f.channel] : [])],
-  ).map((c) => {
-    const t = one(
-      `SELECT COUNT(*) target,COALESCE(SUM(EXISTS(SELECT 1 FROM dw_fact_orders o WHERE o.campaign_target_id=t.id AND o.ordered_at BETWEEN ? AND ?)),0) converted FROM campaign_targets t WHERE t.campaign_id=? AND t.targeted_at BETWEEN ? AND ?${q.sql}`,
-      [f.start, f.end, c.id, f.start, f.end, ...q.args],
-    );
-    const p = one(
-      `SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(spent),0) spent FROM campaign_spend WHERE campaign_id=? AND date BETWEEN ? AND ?${sp.sql}`,
-      [c.id, f.start, f.end, ...sp.args],
-    );
-    const revenue = one(
-      `SELECT COALESCE(SUM(o.amount),0) revenue FROM dw_fact_orders o JOIN campaign_targets t ON t.id=o.campaign_target_id WHERE t.campaign_id=? AND t.targeted_at BETWEEN ? AND ? AND o.ordered_at BETWEEN ? AND ?${q.sql}`,
-      [c.id, f.start, f.end, f.start, f.end, ...q.args],
-    ).revenue;
-    return {
-      ...c,
-      ...t,
-      ...p,
-      revenue,
-      conversion: ratio(t.converted, t.target),
-      progress: ratio(p.spent, p.planned),
-      status: c.end_date < f.end ? "완료" : "진행 중",
-    };
-  });
+  return await Promise.all(
+    (
+      await all(
+        "SELECT * FROM campaigns WHERE start_date<=? AND end_date>=?" +
+          (f.channel ? " AND channel=?" : ""),
+        [f.end, f.start, ...(f.channel ? [f.channel] : [])],
+      )
+    ).map(async (c) => {
+      const t = await one(
+        `SELECT COUNT(*) target,COALESCE(SUM(EXISTS(SELECT 1 FROM dw_fact_orders o WHERE o.campaign_target_id=t.id AND o.ordered_at BETWEEN ? AND ?)),0) converted FROM campaign_targets t WHERE t.campaign_id=? AND t.targeted_at BETWEEN ? AND ?${q.sql}`,
+        [f.start, f.end, c.id, f.start, f.end, ...q.args],
+      );
+      const p = await one(
+        `SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(spent),0) spent FROM campaign_spend WHERE campaign_id=? AND date BETWEEN ? AND ?${sp.sql}`,
+        [c.id, f.start, f.end, ...sp.args],
+      );
+      const revenue = (
+        await one(
+          `SELECT COALESCE(SUM(o.amount),0) revenue FROM dw_fact_orders o JOIN campaign_targets t ON t.id=o.campaign_target_id WHERE t.campaign_id=? AND t.targeted_at BETWEEN ? AND ? AND o.ordered_at BETWEEN ? AND ?${q.sql}`,
+          [c.id, f.start, f.end, f.start, f.end, ...q.args],
+        )
+      ).revenue;
+      return {
+        ...c,
+        ...t,
+        ...p,
+        revenue,
+        conversion: ratio(t.converted, t.target),
+        progress: ratio(p.spent, p.planned),
+        status: c.end_date < f.end ? "완료" : "진행 중",
+      };
+    }),
+  );
 }
-function appMetrics(f, start = f.start, end = f.end) {
+async function appMetrics(f, start = f.start, end = f.end) {
   const q = scope(f);
-  const r = one(
+  const r = await one(
     `SELECT COUNT(*) sessions,COUNT(DISTINCT customer_id) users,COALESCE(SUM(viewed_product),0) viewed,COALESCE(SUM(added_cart),0) cart,COUNT(order_id) purchased,COALESCE(AVG(duration_seconds),0) duration FROM app_sessions WHERE session_date BETWEEN ? AND ?${q.sql}`,
     [start, end, ...q.args],
   );
-  const daily = all(
+  const daily = await all(
     `SELECT session_date date,COUNT(DISTINCT customer_id) users,COUNT(*) sessions FROM app_sessions WHERE session_date BETWEEN ? AND ?${q.sql} GROUP BY session_date`,
     [start, end, ...q.args],
   );
@@ -167,19 +173,19 @@ function appMetrics(f, start = f.start, end = f.end) {
     daily,
   };
 }
-export function analytics(f) {
+export async function analytics(f) {
   const q = scope(f);
-  const current = summary(f),
-    previous = summary(f, f.previousStart, f.previousEnd);
-  const customers = customerMetrics(f),
-    oldCustomers = customerMetrics(f, f.previousStart, f.previousEnd);
-  const campaigns = campaignMetrics(f),
-    oldCampaigns = campaignMetrics({
+  const current = await summary(f),
+    previous = await summary(f, f.previousStart, f.previousEnd);
+  const customers = await customerMetrics(f),
+    oldCustomers = await customerMetrics(f, f.previousStart, f.previousEnd);
+  const campaigns = await campaignMetrics(f),
+    oldCampaigns = await campaignMetrics({
       ...f,
       start: f.previousStart,
       end: f.previousEnd,
     });
-  const budget = all(
+  const budget = await all(
     `SELECT department,SUM(planned) planned,SUM(spent) spent,SUM(sales_target) salesTarget FROM budget_daily WHERE date BETWEEN ? AND ?${q.sql} GROUP BY department`,
     [f.start, f.end, ...q.args],
   );
@@ -189,35 +195,44 @@ export function analytics(f) {
       spent: a.spent + r.spent,
       salesTarget: a.salesTarget + r.salesTarget,
     }),
-    { planned: 0, spent: 0, salesTarget: 0 },
+    {
+      planned: 0,
+      spent: 0,
+      salesTarget: 0,
+    },
   );
-  const trends = all(
+  const trends = await all(
     `SELECT date,SUM(sales) sales,SUM(orders) orders FROM mart_sales_daily WHERE date BETWEEN ? AND ?${q.sql} GROUP BY date`,
     [f.previousStart, f.end, ...q.args],
   );
   const map = new Map(trends.map((r) => [r.date, r]));
-  const trend = Array.from({ length: f.days }, (_, i) => {
-    const date = dateAdd(f.start, i),
-      prev = map.get(dateAdd(f.previousStart, i)),
-      now = map.get(date);
-    return {
-      date,
-      sales: now?.sales || 0,
-      previous: prev?.sales || 0,
-      orders: now?.orders || 0,
-    };
-  });
+  const trend = Array.from(
+    {
+      length: f.days,
+    },
+    (_, i) => {
+      const date = dateAdd(f.start, i),
+        prev = map.get(dateAdd(f.previousStart, i)),
+        now = map.get(date);
+      return {
+        date,
+        sales: now?.sales || 0,
+        previous: prev?.sales || 0,
+        orders: now?.orders || 0,
+      };
+    },
+  );
   const sq = scope(f, "o");
-  const categories = all(
+  const categories = await all(
     `SELECT p.category,SUM(i.quantity*i.unit_price) sales,SUM(i.quantity) quantity FROM order_items i JOIN dw_fact_orders o ON o.id=i.order_id JOIN products p ON p.id=i.product_id WHERE o.ordered_at BETWEEN ? AND ?${sq.sql} GROUP BY p.category ORDER BY sales DESC`,
     [f.start, f.end, ...sq.args],
   );
-  const byStore = all(
+  const byStore = await all(
     `SELECT s.name,SUM(o.amount) sales,COUNT(*) orders FROM dw_fact_orders o JOIN stores s ON s.id=o.store_id WHERE o.ordered_at BETWEEN ? AND ?${sq.sql} GROUP BY s.id ORDER BY sales DESC`,
     [f.start, f.end, ...sq.args],
   );
-  const app = appMetrics(f),
-    previousApp = appMetrics(f, f.previousStart, f.previousEnd);
+  const app = await appMetrics(f),
+    previousApp = await appMetrics(f, f.previousStart, f.previousEnd);
   const campaignTotal = (list) => {
     const r = list.reduce(
       (a, c) => ({
@@ -227,9 +242,18 @@ export function analytics(f) {
         planned: a.planned + c.planned,
         revenue: a.revenue + c.revenue,
       }),
-      { target: 0, converted: 0, spent: 0, planned: 0, revenue: 0 },
+      {
+        target: 0,
+        converted: 0,
+        spent: 0,
+        planned: 0,
+        revenue: 0,
+      },
     );
-    return { ...r, conversion: ratio(r.converted, r.target) };
+    return {
+      ...r,
+      conversion: ratio(r.converted, r.target),
+    };
   };
   const ct = campaignTotal(campaigns),
     pct = campaignTotal(oldCampaigns);
@@ -259,7 +283,7 @@ export function analytics(f) {
   ];
   return {
     range: f,
-    seed: one("SELECT * FROM seed_info"),
+    seed: await one("SELECT * FROM seed_info"),
     queriedAt: new Date().toISOString(),
     summary: {
       ...current,
@@ -326,31 +350,26 @@ export function analytics(f) {
     insights,
   };
 }
-export function catalog() {
-  const seed = one("SELECT * FROM seed_info");
-  const known = new Set(
-    all("SELECT name FROM sqlite_master WHERE type IN ('table','view')").map(
-      (r) => r.name,
-    ),
-  );
+export async function catalog() {
+  const seed = await one("SELECT * FROM seed_info");
+  const known = new Set((await tableNames()).map((r) => r.name));
   return {
-    assets: all("SELECT * FROM asset_metadata")
-      .filter((a) => known.has(a.id))
-      .map((a) => ({
-        ...a,
-        rows: one(`SELECT COUNT(*) count FROM "${a.id.replaceAll('"', '""')}"`)
-          .count,
-        columns: db
-          .prepare("SELECT name,type,pk FROM pragma_table_info(?)")
-          .all(a.id),
-        updatedAt: seed.created_at,
-      })),
-    edges: all("SELECT source,target FROM asset_edges"),
-    pipelines: all("SELECT * FROM pipeline_runs"),
+    assets: await Promise.all(
+      (await all("SELECT * FROM asset_metadata"))
+        .filter((a) => known.has(a.id))
+        .map(async (a) => ({
+          ...a,
+          rows: (await countRows(a.id)).count,
+          columns: await columns(a.id),
+          updatedAt: seed.created_at,
+        })),
+    ),
+    edges: await all("SELECT source,target FROM asset_edges"),
+    pipelines: await all("SELECT * FROM pipeline_runs"),
     updatedAt: seed.created_at,
   };
 }
-export function orderList(f, params) {
+export async function orderList(f, params) {
   const page = Number(params.get("page") || 1);
   if (!Number.isInteger(page) || page < 1 || page > 100000)
     throw new Error("400:페이지 번호가 올바르지 않습니다.");
@@ -369,8 +388,8 @@ export function orderList(f, params) {
   return {
     page,
     pageSize: 20,
-    total: one(`SELECT COUNT(*) total ${from}`, args).total,
-    items: all(
+    total: (await one(`SELECT COUNT(*) total ${from}`, args)).total,
+    items: await all(
       `SELECT o.id,c.name customer,c.grade,s.name store,o.channel,o.ordered_at date,o.amount,o.method ${from} ORDER BY o.ordered_at DESC,o.id DESC LIMIT 20 OFFSET ?`,
       [...args, (page - 1) * 20],
     ),

@@ -9,12 +9,16 @@
     "preview": "node server/index.mjs",
     "start": "node server/index.mjs",
     "db:seed": "node server/seed.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node scripts/test.mjs",
+    "db:up": "docker compose up -d --wait mysql",
+    "db:down": "docker compose down",
+    "test:mysql": "node --test tests/mysql.integration.mjs"
   },
   "dependencies": {
+    "lucide-react": "^0.468.0",
+    "mysql2": "^3.24.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0",
     "recharts": "^3.3.0"
   },
   "devDependencies": {

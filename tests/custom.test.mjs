@@ -42,7 +42,10 @@ test("local guard blocks off-topic, mixed, injection, PII and SQL before provide
     let calls = 0;
     await assert.rejects(
       customAnalysis(
-        { ...input, question: q },
+        {
+          ...input,
+          question: q,
+        },
         {
           call: async () => {
             calls++;
@@ -55,18 +58,18 @@ test("local guard blocks off-topic, mixed, injection, PII and SQL before provide
   }
   assert.ok(guardQuestion(input.question));
 });
-test("history extension preserves recent data and adds at least two prior calendar years", () => {
-  assert.deepEqual(customStatus().years, [2026, 2025, 2024]);
+test("history extension preserves recent data and adds at least two prior calendar years", async () => {
+  assert.deepEqual((await customStatus()).years, [2026, 2025, 2024]);
   assert.equal(
-    one("SELECT COUNT(*) n FROM orders WHERE ordered_at<'2026-01-01'").n >
-      30000,
+    (await one("SELECT COUNT(*) n FROM orders WHERE ordered_at<'2026-01-01'"))
+      .n > 30000,
     true,
   );
-  assert.deepEqual(one("PRAGMA foreign_key_check"), undefined);
+  assert.deepEqual(await one("PRAGMA foreign_key_check"), undefined);
 });
-test("forecast reconciles actual SQL and scenario totals, respects filters and incomplete year", () => {
-  const d = forecast(input);
-  const raw = one(
+test("forecast reconciles actual SQL and scenario totals, respects filters and incomplete year", async () => {
+  const d = await forecast(input);
+  const raw = await one(
     "SELECT SUM(amount) sales FROM dw_fact_orders WHERE ordered_at BETWEEN '2026-01-01' AND '2026-12-31'",
   );
   assert.equal(d.actualTotal, raw.sales);
@@ -79,15 +82,50 @@ test("forecast reconciles actual SQL and scenario totals, respects filters and i
     d.baselineTotal,
     d.monthly.reduce((s, m) => s + m.baseline, 0),
   );
-  assert.equal(forecast({ ...input, uplift: 0 }).eventTotal, d.baselineTotal);
   assert.equal(
-    forecast({ ...input, store: "1" }).actualTotal +
-      forecast({ ...input, store: "2" }).actualTotal +
-      forecast({ ...input, store: "3" }).actualTotal,
+    (
+      await forecast({
+        ...input,
+        uplift: 0,
+      })
+    ).eventTotal,
+    d.baselineTotal,
+  );
+  assert.equal(
+    (
+      await forecast({
+        ...input,
+        store: "1",
+      })
+    ).actualTotal +
+      (
+        await forecast({
+          ...input,
+          store: "2",
+        })
+      ).actualTotal +
+      (
+        await forecast({
+          ...input,
+          store: "3",
+        })
+      ).actualTotal,
     d.actualTotal,
   );
-  assert.throws(() => forecast({ ...input, year: 2035 }));
-  assert.throws(() => forecast({ ...input, uplift: 99 }));
+  await assert.rejects(
+    async () =>
+      await forecast({
+        ...input,
+        year: 2035,
+      }),
+  );
+  await assert.rejects(
+    async () =>
+      await forecast({
+        ...input,
+        uplift: 99,
+      }),
+  );
 });
 test("missing key is explicit and never creates a fake LLM report", async () => {
   delete process.env.OPENAI_API_KEY;
@@ -100,7 +138,10 @@ test("semantic gate fails closed and sends no evidence to rejected requests", as
     customAnalysis(input, {
       call: async () => {
         calls++;
-        return { allowed: false, reason: "무관한 질문" };
+        return {
+          allowed: false,
+          reason: "무관한 질문",
+        };
       },
     }),
     (e) => e.status === 400,
@@ -109,11 +150,15 @@ test("semantic gate fails closed and sends no evidence to rejected requests", as
 });
 test("allowed question returns computed evidence; LLM has no SQL tools or customer records", async () => {
   let calls = 0;
-  const before = one("SELECT COUNT(*) n FROM orders").n;
+  const before = (await one("SELECT COUNT(*) n FROM orders")).n;
   const r = await customAnalysis(input, {
     call: async (system, data) => {
       calls++;
-      if (calls === 1) return { allowed: true, reason: "DW 매출 분석" };
+      if (calls === 1)
+        return {
+          allowed: true,
+          reason: "DW 매출 분석",
+        };
       assert.ok(data.evidence.monthly.length === 12);
       assert.equal(data.evidence.breakdown.byStore.length, 3);
       assert.ok(data.evidence.breakdown.byCategory.length > 0);
@@ -126,7 +171,7 @@ test("allowed question returns computed evidence; LLM has no SQL tools or custom
   assert.equal(calls, 2);
   assert.equal(r.evidence.targetYear, 2027);
   assert.equal(r.report.summary, valid.summary);
-  assert.equal(one("SELECT COUNT(*) n FROM orders").n, before);
+  assert.equal((await one("SELECT COUNT(*) n FROM orders")).n, before);
 });
 test("invalid model report is rejected, including invented campaign evidence", async () => {
   let calls = 0;
@@ -134,8 +179,18 @@ test("invalid model report is rejected, including invented campaign evidence", a
     customAnalysis(input, {
       call: async () =>
         ++calls === 1
-          ? { allowed: true }
-          : { ...valid, events: [{ ...valid.events[0], campaignId: 99999 }] },
+          ? {
+              allowed: true,
+            }
+          : {
+              ...valid,
+              events: [
+                {
+                  ...valid.events[0],
+                  campaignId: 99999,
+                },
+              ],
+            },
     }),
     (e) => e.status === 502,
   );
@@ -143,8 +198,12 @@ test("invalid model report is rejected, including invented campaign evidence", a
 test("Responses API integration uses structured output and sanitizes upstream errors", async () => {
   const data = await openAI(
     "scope",
-    { question: input.question },
-    { type: "object" },
+    {
+      question: input.question,
+    },
+    {
+      type: "object",
+    },
     async (url, options) => {
       assert.equal(url, "https://api.openai.com/v1/responses");
       const req = JSON.parse(options.body);
@@ -156,7 +215,14 @@ test("Responses API integration uses structured output and sanitizes upstream er
         json: async () => ({
           status: "completed",
           output: [
-            { content: [{ type: "output_text", text: '{"allowed":true}' }] },
+            {
+              content: [
+                {
+                  type: "output_text",
+                  text: '{"allowed":true}',
+                },
+              ],
+            },
           ],
         }),
       };
@@ -164,26 +230,44 @@ test("Responses API integration uses structured output and sanitizes upstream er
   );
   assert.equal(data.allowed, true);
   await assert.rejects(
-    openAI("x", {}, {}, async () => ({ ok: false, status: 401 })),
+    openAI("x", {}, {}, async () => ({
+      ok: false,
+      status: 401,
+    })),
     (e) => e.status === 502 && !e.message.includes("test-placeholder"),
   );
   await assert.rejects(
     openAI("x", {}, {}, async () => ({
       ok: true,
-      json: async () => ({ output: [{ content: [{ type: "refusal" }] }] }),
+      json: async () => ({
+        output: [
+          {
+            content: [
+              {
+                type: "refusal",
+              },
+            ],
+          },
+        ],
+      }),
     })),
     (e) => e.status === 502,
   );
 });
-
 test("known missing-store contradiction is corrected once using the same DB evidence", async () => {
   let calls = 0;
   const result = await customAnalysis(
-    { ...input, question: "2026년 매출 1위 점포를 알려줘" },
+    {
+      ...input,
+      question: "2026년 매출 1위 점포를 알려줘",
+    },
     {
       call: async () => {
         calls++;
-        if (calls === 1) return { allowed: true };
+        if (calls === 1)
+          return {
+            allowed: true,
+          };
         if (calls === 2)
           return {
             ...valid,
@@ -199,17 +283,21 @@ test("known missing-store contradiction is corrected once using the same DB evid
   );
   assert.equal(calls, 3);
   assert.equal(result.report.events.length, 0);
-  const evidence = forecast(input);
+  const evidence = await forecast(input);
   assert.equal(
     contradictsStoreEvidence(
-      { summary: "점포별 매출 구분이 없어 확인 불가" },
+      {
+        summary: "점포별 매출 구분이 없어 확인 불가",
+      },
       evidence,
     ),
     true,
   );
   assert.equal(
     contradictsStoreEvidence(
-      { summary: "12월 실적은 미보유입니다." },
+      {
+        summary: "12월 실적은 미보유입니다.",
+      },
       evidence,
     ),
     false,

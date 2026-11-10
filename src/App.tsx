@@ -50,7 +50,7 @@ const descriptions: Record<Page, string> = {
   campaigns: "캠페인 대상 고객과 구매 전환, 집행 내역을 확인합니다.",
   app: "앱 세션을 바탕으로 방문부터 구매까지 이용 흐름을 확인합니다.",
   budget: "부문별 배정 예산, 집행 내역과 매출 목표를 비교합니다.",
-  catalog: "SQLite 테이블과 SQL 뷰의 스키마·행 수를 조회합니다.",
+  catalog: "MySQL 테이블과 SQL 뷰의 스키마·행 수를 조회합니다.",
   lineage: "실제 SQL 뷰의 데이터 흐름과 영향 범위를 확인합니다.",
   custom: "DW 데이터에 질문하고 OpenAI 분석과 매출 시나리오를 확인합니다.",
   settings: "DB에 저장되는 워크스페이스 설정과 데이터 정보를 관리합니다.",
@@ -278,7 +278,7 @@ export default function App() {
         <div className="sidebar-bottom">
           <div className="sample-label">
             <span />
-            SQLite · 생성 샘플 데이터
+            MySQL · 생성 샘플 데이터
           </div>
           <p>
             샘플 데이터 기준일
@@ -315,7 +315,7 @@ export default function App() {
           <div className="topbar-right">
             <span className="connection">
               <span />
-              SQLite 연결
+              MySQL 연결
             </span>
             {bootstrap.settings.alertsEnabled && (
               <button
@@ -576,7 +576,7 @@ export default function App() {
               SAMPLE DATABASE
             </span>
             <p>
-              생성 샘플 데이터 · 모든 수치는 SQLite 조회 결과 · 인사이트는 집계
+              생성 샘플 데이터 · 모든 수치는 MySQL 조회 결과 · 인사이트는 집계
               기반 규칙 요약
             </p>
             {analyticPage && (

@@ -122,7 +122,7 @@ export function LineagePage({
           <div className="panel-head">
             <div>
               <h2>End-to-End 데이터 흐름</h2>
-              <p>SQLite 테이블 → DW 뷰 → 집계 뷰 → 리포트 뷰</p>
+              <p>MySQL 테이블 → DW 뷰 → 집계 뷰 → 리포트 뷰</p>
             </div>
             <div className="flow-filters">
               <select
@@ -203,7 +203,7 @@ export function LineagePage({
                   <small
                     className={`engine ${a.type.toLowerCase().replace(" ", "-")}`}
                   >
-                    SQLITE · {a.type === "SOURCE" ? "TABLE" : "VIEW"}
+                    MYSQL · {a.type === "SOURCE" ? "TABLE" : "VIEW"}
                   </small>
                   <strong>{a.name}</strong>
                   <span>
@@ -224,7 +224,7 @@ export function LineagePage({
             <p>{asset.description}</p>
             <dl>
               {[
-                ["저장 엔진", "SQLite"],
+                ["저장 엔진", "MySQL"],
                 ["최초 적재", timestamp(asset.updatedAt)],
                 ["현재 행 수", num(asset.rows)],
                 ["데이터 오너", asset.owner],
@@ -354,14 +354,14 @@ export function SettingsPage({
             {saving ? "저장 중…" : "DB에 설정 저장"}
           </button>
           <p className="muted">
-            설정은 SQLite DB에 저장되어 브라우저와 서버를 다시 실행해도
+            설정은 MySQL DB에 저장되어 브라우저와 서버를 다시 실행해도
             유지됩니다.
           </p>
         </form>
       </Panel>
       <Panel title="DB 연결 및 데이터 범위">
         <div className="settings-info">
-          <h3>SQLite · 로컬 샘플 데이터베이스</h3>
+          <h3>MySQL · 로컬 샘플 데이터베이스</h3>
           <p>
             샘플 데이터 범위
             <br />

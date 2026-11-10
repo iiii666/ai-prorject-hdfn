@@ -17,3 +17,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm run db:up
+      - run: npm run test:mysql
+      - if: always()
+        run: docker compose down
