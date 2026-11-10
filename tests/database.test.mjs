@@ -252,3 +252,53 @@ test("static root accepts a normalized build path", async () => {
   assert.ok([200, 404].includes(r.status));
   if (r.status === 200) assert.ok((await r.text()).includes('id="root"'));
 });
+
+test("Vite proxy preserves same-origin requests and rejects unrelated origins", async () => {
+  const { createServer } = await import("vite");
+  const { default: config } = await import("../vite.config.ts");
+  const proxyConfig = config.server.proxy["/api"];
+  assert.equal(proxyConfig.changeOrigin, false);
+  const vite = await createServer({
+    ...config,
+    configFile: false,
+    server: {
+      host: "127.0.0.1",
+      port: 0,
+      proxy: { "/api": { ...proxyConfig, target: url } },
+    },
+  });
+  await vite.listen();
+  try {
+    const { request } = await import("node:http");
+    const port = vite.httpServer.address().port;
+    const send = (host, origin) =>
+      new Promise((resolve, reject) => {
+        const req = request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path: "/api/custom/analyze",
+            method: "POST",
+            headers: { host, origin, "Content-Type": "application/json" },
+          },
+          (res) => {
+            let body = "";
+            res.on("data", (c) => (body += c));
+            res.on("end", () => resolve({ status: res.statusCode, body }));
+          },
+        );
+        req.on("error", reject);
+        req.end(JSON.stringify({ question: "매출" }));
+      });
+    for (const hostname of ["127.0.0.1", "localhost"]) {
+      const host = `${hostname}:${port}`;
+      const allowed = await send(host, `http://${host}`);
+      assert.equal(allowed.status, 400, allowed.body); // Reached input validation, no paid model call.
+      assert.ok(!allowed.body.includes("같은 사이트"));
+      const denied = await send(host, "https://unrelated.example");
+      assert.equal(denied.status, 403);
+    }
+  } finally {
+    await vite.close();
+  }
+});
