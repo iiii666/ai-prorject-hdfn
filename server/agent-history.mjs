@@ -28,7 +28,7 @@ export async function historyList(params=new URLSearchParams()) {
   const where=clauses.length?" WHERE "+clauses.join(" AND "):"";
   const counts=await all("SELECT r.status,COUNT(*) count FROM metric_agent_runs r"+where+" GROUP BY r.status",args);
   const total=counts.reduce((s,r)=>s+Number(r.count),0);
-  const items=await all("SELECT r.*,a.name agent_name,a.app_id FROM metric_agent_runs r JOIN metric_agents a ON a.id=r.agent_id"+where+" ORDER BY r.created_at DESC,r.id DESC LIMIT ? OFFSET ?",[...args,pageSize,(page-1)*pageSize]);
+  const items=await all("SELECT r.*,a.name agent_name,a.app_id FROM metric_agent_runs r JOIN metric_agents a ON a.id=r.agent_id"+where+" ORDER BY r.created_at DESC,r.slot DESC,r.id DESC LIMIT ? OFFSET ?",[...args,pageSize,(page-1)*pageSize]);
   return {items:items.map(decode),total,page,pageSize,totalPages:Math.ceil(total/pageSize),counts:Object.fromEntries(STATUSES.map(s=>[s,Number(counts.find(r=>r.status===s)?.count||0)])),queriedAt:stamp()};
 }
 export async function historyDetail(id){

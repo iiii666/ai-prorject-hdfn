@@ -25,6 +25,8 @@ return (<details
                         </span>{" "}
                         {runKinds[r.kind] || r.kind} ·{" "}
                         {timestamp(r.created_at)}
+                        {r.report.replay && <span className="history-period">재현 기준: {timestamp(r.report.replay.asOf)}</span>}
+                        {r.report.range && <span className="history-period">분석 주차: {r.report.range.start} ~ {r.report.range.end}</span>}
                         <strong>{r.report.summary || "분석 중…"}</strong>
                       </summary>
                       {agentName && <p className="app-history-agent">{agentName}</p>}
