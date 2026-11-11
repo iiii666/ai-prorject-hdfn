@@ -1,3 +1,5 @@
+import AgentRunReport from "./AgentRunReport";
+import AgentHistory from "./AgentHistory";
 import { useEffect, useState } from "react";
 import {
   Sparkles,
@@ -43,7 +45,7 @@ type SavedApp = {
   version: number;
   updated_at: string;
 };
-type Meta = {
+export type Meta = {
   metrics: Record<
     string,
     { label: string; unit: string; definition: string; source: string }
@@ -88,13 +90,14 @@ type Agent = {
   enabled: boolean;
   next_run: string;
 };
-type Run = {
+export type Run = {
   id: string;
   kind: string;
   status: string;
   created_at: string;
   finished_at: string;
   report: {
+    replay?: { asOf: string; source: string; description: string };
     summary?: string;
     appTitle?: string;
     appVersion?: number;
@@ -147,13 +150,6 @@ const fmt = (n: number | null | undefined, unit = "") =>
   n == null
     ? "—"
     : `${n.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${unit}`;
-const statuses: Record<string, string> = {
-  running: "실행 중",
-  alert: "조건 발견",
-  normal: "정상",
-  no_data: "판단 보류",
-  error: "실행 실패",
-};
 function Preview({ data, meta }: { data: Data; meta: Meta }) {
   return (
     <div className="app-preview">
@@ -305,7 +301,7 @@ export default function MyAnalysisApps({
 }: {
   bootstrap: Bootstrap;
 }) {
-  const [tab, setTab] = useState<"apps" | "agents">("apps");
+  const [tab, setTab] = useState<"apps" | "agents" | "history">("apps");
   const [meta, setMeta] = useState<Meta | null>(null),
     [apps, setApps] = useState<SavedApp[]>([]),
     [agents, setAgents] = useState<Agent[]>([]);
@@ -429,6 +425,7 @@ export default function MyAnalysisApps({
           지표 감시 에이전트{" "}
           <span>{agents.filter((a) => a.enabled).length}개 활성</span>
         </button>
+        <button role="tab" aria-selected={tab==="history"} onClick={()=>setTab("history")}><History size={16}/>감시 실행 이력</button>
       </div>
       {error && (
         <p className="analysis-error" role="alert">
@@ -446,7 +443,7 @@ export default function MyAnalysisApps({
           {busy} 중…
         </p>
       )}
-      <fieldset className="app-workspace" disabled={!!busy}>
+      {tab==="history" ? <AgentHistory meta={meta} agents={agents} onRefresh={refresh} onOpenApp={id=>{const a=apps.find(a=>a.id===id);if(a){setTab("apps");void action("앱 조회",()=>open(a));}}} onOpenAgent={id=>{const a=agents.find(a=>a.id===id);if(a){setTab("agents");void action("감시 조회",()=>showAgent(a));}}}/> : <fieldset className="app-workspace" disabled={!!busy}>
         {tab === "apps" ? (
           <>
             <aside className="app-library">
@@ -1139,132 +1136,17 @@ export default function MyAnalysisApps({
                     감시를 선택하고 시험 실행하면 보고서가 여기에 표시됩니다.
                   </p>
                 ) : (
-                  runs.map((r, i) => (
-                    <details
-                      className={`app-run ${r.status}`}
-                      key={r.id}
-                      open={i === 0}
-                    >
-                      <summary>
-                        <span className="app-chip">
-                          {statuses[r.status] || r.status}
-                        </span>{" "}
-                        {r.kind === "test" ? "시험" : "정기"} ·{" "}
-                        {timestamp(r.created_at)}
-                        <strong>{r.report.summary || "분석 중…"}</strong>
-                      </summary>
-                      {r.report.appTitle && (
-                        <p>
-                          {r.report.appTitle} · 실행 시점 v{r.report.appVersion}
-                        </p>
-                      )}
-                      {r.report.range && (
-                        <p className="muted">
-                          분석: {r.report.range.start} ~ {r.report.range.end}
-                          <br />
-                          비교: {r.report.range.previousStart} ~{" "}
-                          {r.report.range.previousEnd}
-                        </p>
-                      )}
-                      {r.report.config && (
-                        <p>
-                          판단 기준:{" "}
-                          {meta.metrics[r.report.config.metric].label} ·{" "}
-                          {r.report.config.condition === "drop"
-                            ? "상대 감소율 이상"
-                            : r.report.config.condition === "below"
-                              ? "값 미만"
-                              : "값 초과"}{" "}
-                          ·{" "}
-                          {fmt(
-                            r.report.config.threshold,
-                            r.report.config.condition === "drop"
-                              ? "%"
-                              : meta.metrics[r.report.config.metric].unit,
-                          )}
-                        </p>
-                      )}
-                      {r.report.rows && r.report.config && (
-                        <DataTable
-                          headers={["그룹", "현재", "비교", "증감률", "판정"]}
-                          rows={r.report.rows.map((row) => {
-                            const metric = row.metrics[r.report.config!.metric];
-                            return [
-                              row.label,
-                              fmt(metric.value),
-                              fmt(metric.previous),
-                              fmt(metric.change, "%"),
-                              row.matched === null
-                                ? "보류"
-                                : row.matched
-                                  ? "조건 발견"
-                                  : "정상",
-                            ];
-                          })}
-                        />
-                      )}
-                      {r.report.investigations?.map((v, j) => (
-                        <div key={j}>
-                          <h4>{v.group} 추가 조회</h4>
-                          {v.details.map((d) => (
-                            <div key={d.dimension}>
-                              <p>{meta.dimensions[d.dimension]} 증감액</p>
-                              <DataTable
-                                headers={[
-                                  "구분",
-                                  "현재 매출",
-                                  "비교 매출",
-                                  "증감액",
-                                ]}
-                                rows={d.rows.map((row) => [
-                                  row.label,
-                                  fmt(row.value, "원"),
-                                  fmt(row.previous, "원"),
-                                  fmt(row.difference, "원"),
-                                ])}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                      <details className="app-details">
-                        <summary>수행 단계와 해석 근거</summary>
-                        <ol>
-                          {r.report.steps?.map((s, j) => (
-                            <li key={j}>{s}</li>
-                          ))}
-                        </ol>
-                        <ul>
-                          {r.report.notes?.map((n, j) => (
-                            <li key={j}>{n}</li>
-                          ))}
-                        </ul>
-                      </details>
-                      {agentId && (
-                        <button
-                          onClick={() => {
-                            const a = apps.find(
-                              (a) =>
-                                a.id ===
-                                agents.find((a) => a.id === agentId)?.app_id,
-                            );
-                            if (a) {
-                              setTab("apps");
-                              void action("앱 조회", () => open(a));
-                            }
-                          }}
-                        >
-                          연결된 분석 앱 열기
-                        </button>
-                      )}
-                    </details>
-                  ))
+                  runs.map((r,i)=><AgentRunReport key={r.id} run={r} meta={meta} open={i===0} onOpenApp={()=>{
+                    const a=apps.find(a=>a.id===agents.find(a=>a.id===agentId)?.app_id);
+                    if(a){setTab("apps");void action("앱 조회",()=>open(a));}
+                  }}/>)
+
                 )}
               </Panel>
             </div>
           </>
         )}
-      </fieldset>
+      </fieldset>}
     </div>
   );
 }

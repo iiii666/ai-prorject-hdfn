@@ -1,3 +1,4 @@
+import { historyList, historyDetail, seedDemoHistory } from "./agent-history.mjs";
 import { planApp, planAgent, bad, METRICS, DIMENSIONS } from "./app-plans.mjs";
 import { appData } from "./app-data.mjs";
 import {
@@ -47,6 +48,10 @@ export async function workspaceApi(path, method, readBody, params) {
       return { deleted: true };
     }
   }
+  if (path === "/api/metric-agents/history" && method === "GET") return historyList(params);
+  if (path === "/api/metric-agents/demo" && method === "POST") return seedDemoHistory();
+  const history=path.match(/^\/api\/metric-agents\/history\/([a-f0-9-]{36})$/);
+  if(history && method === "GET")return historyDetail(history[1]);
   if (path === "/api/metric-agents/plan" && method === "POST") {
     const input = await readBody();
     const app = await getApp(input.appId);

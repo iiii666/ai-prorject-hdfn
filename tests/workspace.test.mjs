@@ -21,6 +21,7 @@ const {
   validateAgent,
 } = await import("../server/metric-agents.mjs");
 await initializeApps();
+const { seedDemoHistory, historyList, historyDetail, DEMO_APP_ID, DEMO_AGENT_ID }=await import("../server/agent-history.mjs");
 const seed = await one("SELECT * FROM seed_info");
 const spec = {
   title: "검증용 점포 분석",
@@ -336,6 +337,42 @@ test("category investigations keep category scope and app edits preserve agent c
   }
 });
 
+
+test("demo history replays eight real weeks, marks provenance, remains inactive and does not alter source rows",async()=>{
+  const before=await one("SELECT COUNT(*) count,SUM(amount) amount FROM dw_fact_orders");
+  const out=await seedDemoHistory();ids.push(DEMO_APP_ID);
+  assert.equal(out.created,true);assert.equal(out.count,9);
+  const agent=await getAgent(DEMO_AGENT_ID);
+  assert.equal(agent.enabled,false);assert.equal(agent.config.condition,"drop");assert.equal(agent.config.threshold,10);assert.equal(agent.config.time,"09:00");assert.equal(agent.config.weekday,1);
+  const rows=await agentRuns(DEMO_AGENT_ID);assert.equal(rows.length,9);
+  assert.ok(rows.some(r=>r.status==="no_data"));
+  for(const run of rows){
+    assert.equal(run.kind,"replay");assert.equal(run.report.replay.source,"historical_replay");
+    assert.ok(new Date(run.created_at)>new Date(run.report.replay.asOf));
+    const report=await investigate(await getApp(DEMO_APP_ID),agent.config,new Date(run.report.replay.asOf));
+    assert.deepEqual(run.report.rows,JSON.parse(JSON.stringify(report.rows)));
+    assert.equal(run.status,report.status);
+    for(const row of run.report.rows)assert.equal(row.matched,row.metrics.sales.change===null?null:row.metrics.sales.change<=-10);
+  }
+  const beforeNext=agent.next_run;
+  const again=await seedDemoHistory();assert.equal(again.created,false);assert.equal(again.count,9);
+  assert.equal((await getAgent(DEMO_AGENT_ID)).next_run,beforeNext);
+  assert.deepEqual(await one("SELECT COUNT(*) count,SUM(amount) amount FROM dw_fact_orders"),before);
+});
+test("history filters, counts, KST record date boundaries, pagination and detail round trip",async()=>{
+  const p=new URLSearchParams({agent:DEMO_AGENT_ID,kind:"replay",pageSize:"5"});
+  const first=await historyList(p);assert.equal(first.total,9);assert.equal(first.totalPages,2);assert.equal(first.items.length,5);
+  p.set("page","2");const second=await historyList(p);assert.equal(second.items.length,4);
+  assert.ok(second.items.every(r=>!first.items.some(a=>a.id===r.id)));
+  assert.equal(Object.values(first.counts).reduce((a,b)=>a+b,0),9);
+  p.set("page","1");p.set("status","no_data");const withheld=await historyList(p);assert.ok(withheld.total>=1);assert.ok(withheld.items.every(r=>r.status==="no_data"));
+  const detail=await historyDetail(first.items[0].id);assert.equal(detail.agent_id,DEMO_AGENT_ID);assert.equal(detail.report.replay.source,"historical_replay");
+  const day=new Date(Date.parse(detail.created_at)+9*3600000).toISOString().slice(0,10);
+  const today=await historyList(new URLSearchParams({agent:DEMO_AGENT_ID,from:day,to:day}));assert.equal(today.total,9);
+  const future=dateAdd(day,1);assert.equal((await historyList(new URLSearchParams({agent:DEMO_AGENT_ID,from:future,to:future}))).total,0);
+  for(const query of ["page=0","pageSize=51","status=fake","kind=unknown","agent=x%27OR1","from=2026-02-30","from=2026-03-01&to=2026-02-01"])await assert.rejects(historyList(new URLSearchParams(query)));
+  await assert.rejects(historyDetail("00000000-0000-0000-0000-000000000000"),e=>e.status===404);
+});
 test("HTTP endpoints: app lifecycle, malformed JSON, cross-origin protection, runs and cascade delete", async () => {
   const { server } = await import("../server/index.mjs");
   if (!server.listening) await new Promise((r) => server.once("listening", r));
@@ -347,6 +384,13 @@ test("HTTP endpoints: app lifecycle, malformed JSON, cross-origin protection, ru
       body: JSON.stringify(data),
     });
   try {
+    const historyResponse=await fetch(base+"/api/metric-agents/history?agent="+DEMO_AGENT_ID);
+    assert.equal(historyResponse.status,200);const savedHistory=await historyResponse.json();assert.equal(savedHistory.total,9);
+    assert.equal((await fetch(base+"/api/metric-agents/history/"+savedHistory.items[0].id)).status,200);
+    assert.equal((await fetch(base+"/api/metric-agents/history?pageSize=999")).status,400);
+    const demoResponse=await send("/api/metric-agents/demo",{});
+    assert.equal(demoResponse.status,200);assert.equal((await demoResponse.json()).created,false);
+    assert.equal((await send("/api/metric-agents/demo",{},"POST",{Origin:"https://evil.example"})).status,403);
     assert.equal(
       (
         await send("/api/my-apps", { spec }, "POST", {
