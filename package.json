@@ -6,17 +6,16 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc -b && vite build",
-    "preview": "node server/index.mjs",
-    "start": "node server/index.mjs",
-    "db:seed": "node server/seed.mjs",
+    "preview": "uv run --locked python -m backend",
+    "start": "uv run --locked python -m backend",
+    "db:seed": "uv run --locked python -m backend.seed",
     "test": "node scripts/test.mjs",
     "db:up": "docker compose up -d --wait mysql",
     "db:down": "docker compose down",
-    "test:mysql": "node --test tests/mysql.integration.mjs"
+    "test:mysql": "uv run --locked python -m pytest tests/python/test_mysql.py -q --mysql"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
-    "mysql2": "^3.24.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.3.0"

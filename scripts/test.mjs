@@ -1,15 +1,5 @@
-import { spawn } from "node:child_process";
-const p = spawn(
-  process.execPath,
-  [
-    "--test",
-    "tests/custom.test.mjs",
-    "tests/database.test.mjs",
-    "tests/evidence.test.mjs",
-  ],
-  {
-    stdio: "inherit",
-    env: { ...process.env, DW_TEST_SQLITE: "1", DW_DB_PATH: ":memory:" },
-  },
-);
-p.on("exit", (code) => (process.exitCode = code || 0));
+import { spawn } from 'node:child_process';
+const args = ['run', '--locked', 'python', '-m', 'pytest', '-q'];
+const child = spawn('uv', args, { stdio: 'inherit', env: process.env });
+child.on('error', (e) => { console.error(e.message); process.exitCode = 1; });
+child.on('exit', (code) => { process.exitCode = code ?? 1; });

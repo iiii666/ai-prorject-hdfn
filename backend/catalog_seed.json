@@ -1,0 +1,166 @@
+{
+  "asset_metadata": [
+    {
+      "id": "stores",
+      "name": "stores",
+      "type": "SOURCE",
+      "domain": "공통",
+      "description": "점포 기준정보",
+      "owner": "영업관리팀"
+    },
+    {
+      "id": "products",
+      "name": "products",
+      "type": "SOURCE",
+      "domain": "매출",
+      "description": "상품·상품군·가격",
+      "owner": "상품기획팀"
+    },
+    {
+      "id": "customers",
+      "name": "customers",
+      "type": "SOURCE",
+      "domain": "고객",
+      "description": "가상 고객과 회원 등급",
+      "owner": "CRM팀"
+    },
+    {
+      "id": "orders",
+      "name": "orders",
+      "type": "SOURCE",
+      "domain": "매출",
+      "description": "주문 원장 (취소 포함)",
+      "owner": "커머스플랫폼팀"
+    },
+    {
+      "id": "order_items",
+      "name": "order_items",
+      "type": "SOURCE",
+      "domain": "매출",
+      "description": "주문별 상품·수량·단가",
+      "owner": "커머스플랫폼팀"
+    },
+    {
+      "id": "payments",
+      "name": "payments",
+      "type": "SOURCE",
+      "domain": "매출",
+      "description": "완료 주문의 결제 금액",
+      "owner": "커머스플랫폼팀"
+    },
+    {
+      "id": "campaigns",
+      "name": "campaigns",
+      "type": "SOURCE",
+      "domain": "캠페인",
+      "description": "캠페인 일정과 채널",
+      "owner": "마케팅팀"
+    },
+    {
+      "id": "campaign_targets",
+      "name": "campaign_targets",
+      "type": "SOURCE",
+      "domain": "캠페인",
+      "description": "캠페인별 대상 고객",
+      "owner": "CRM팀"
+    },
+    {
+      "id": "campaign_spend",
+      "name": "campaign_spend",
+      "type": "SOURCE",
+      "domain": "예산",
+      "description": "캠페인별 일 예산·실집행",
+      "owner": "마케팅팀"
+    },
+    {
+      "id": "app_sessions",
+      "name": "app_sessions",
+      "type": "SOURCE",
+      "domain": "앱",
+      "description": "앱 방문·조회·장바구니·구매 세션",
+      "owner": "디지털서비스팀"
+    },
+    {
+      "id": "budget_daily",
+      "name": "budget_daily",
+      "type": "SOURCE",
+      "domain": "예산",
+      "description": "일·점포·채널·부문별 예산과 목표",
+      "owner": "재무팀"
+    },
+    {
+      "id": "dw_fact_orders",
+      "name": "dw_fact_orders",
+      "type": "WAREHOUSE",
+      "domain": "매출",
+      "description": "완료 주문과 결제의 조인 뷰",
+      "owner": "Data Platform"
+    },
+    {
+      "id": "mart_sales_daily",
+      "name": "mart_sales_daily",
+      "type": "DATA MART",
+      "domain": "매출",
+      "description": "일·점포·채널별 매출 집계 뷰",
+      "owner": "데이터분석팀"
+    },
+    {
+      "id": "mart_customer_ltv",
+      "name": "mart_customer_ltv",
+      "type": "DATA MART",
+      "domain": "고객",
+      "description": "전체 이력의 고객 구매·생애가치 뷰",
+      "owner": "CRM팀"
+    },
+    {
+      "id": "report_sales",
+      "name": "report_sales",
+      "type": "CONSUMPTION",
+      "domain": "매출",
+      "description": "매출 집계와 점포명 조회 뷰",
+      "owner": "데이터분석팀"
+    },
+    {
+      "id": "report_customers",
+      "name": "report_customers",
+      "type": "CONSUMPTION",
+      "domain": "고객",
+      "description": "고객 생애가치 조회 뷰",
+      "owner": "CRM팀"
+    }
+  ],
+  "asset_edges": [
+    {
+      "source": "orders",
+      "target": "dw_fact_orders"
+    },
+    {
+      "source": "payments",
+      "target": "dw_fact_orders"
+    },
+    {
+      "source": "dw_fact_orders",
+      "target": "mart_sales_daily"
+    },
+    {
+      "source": "dw_fact_orders",
+      "target": "mart_customer_ltv"
+    },
+    {
+      "source": "customers",
+      "target": "mart_customer_ltv"
+    },
+    {
+      "source": "mart_sales_daily",
+      "target": "report_sales"
+    },
+    {
+      "source": "stores",
+      "target": "report_sales"
+    },
+    {
+      "source": "mart_customer_ltv",
+      "target": "report_customers"
+    }
+  ]
+}

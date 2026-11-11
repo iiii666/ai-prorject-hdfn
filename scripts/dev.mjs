@@ -1,41 +1,31 @@
-import { spawn } from "node:child_process";
-if (Number(process.versions.node.split(".")[0]) < 24) {
-  console.error("Node.js 24 LTS 이상이 필요합니다. node -v로 확인하세요.");
-  process.exit(1);
-}
+import { spawn } from 'node:child_process';
 const children = [];
 let ending = false;
 function stop(code = 0) {
   if (ending) return;
   ending = true;
-  for (const child of children) child.kill("SIGTERM");
+  for (const child of children) child.kill('SIGTERM');
   process.exitCode = code;
 }
-function watch(child) {
+function launch(command, args, env = process.env) {
+  const child = spawn(command, args, { stdio: 'inherit', env });
   children.push(child);
-  child.on("error", (e) => {
-    console.error(e);
-    stop(1);
-  });
-  child.on("exit", (code) => stop(code || 0));
+  child.on('error', (error) => { console.error(error.message); stop(1); });
+  child.on('exit', (code) => stop(code || 0));
   return child;
 }
-const api = watch(
-  spawn(process.execPath, ["server/index.mjs"], {
-    stdio: ["inherit", "inherit", "inherit", "ipc"],
-    env: { ...process.env, PORT: "3001" },
-  }),
-);
-// Only expose Vite after the database is seeded and the API is listening.
-api.once("message", (message) => {
-  if (message.type === "dw-ready" && !ending)
-    watch(
-      spawn(
-        process.execPath,
-        ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1"],
-        { stdio: "inherit" },
-      ),
-    );
-});
-process.on("SIGINT", () => stop());
-process.on("SIGTERM", () => stop());
+process.on('SIGINT', () => stop());
+process.on('SIGTERM', () => stop());
+launch('uv', ['run', '--locked', 'python', '-m', 'backend'], { ...process.env, PORT: '3001' });
+const deadline = Date.now() + 180000;
+while (!ending) {
+  try {
+    const response = await fetch('http://127.0.0.1:3001/api/health', { signal: AbortSignal.timeout(1000) });
+    if (response.ok) {
+      launch(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1']);
+      break;
+    }
+  } catch {}
+  if (Date.now() >= deadline) { console.error('Python API 시작 시간이 초과되었습니다.'); stop(1); break; }
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}

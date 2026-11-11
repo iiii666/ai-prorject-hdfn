@@ -1,0 +1,85 @@
+{
+  "planSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "allowed",
+      "reason"
+    ],
+    "properties": {
+      "allowed": {
+        "type": "boolean"
+      },
+      "reason": {
+        "type": "string"
+      }
+    }
+  },
+  "reportSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "summary",
+      "findings",
+      "events",
+      "cautions"
+    ],
+    "properties": {
+      "summary": {
+        "type": "string"
+      },
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "month",
+            "audience",
+            "reason",
+            "campaignId"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "month": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "audience": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "cautions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

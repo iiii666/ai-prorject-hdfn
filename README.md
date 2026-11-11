@@ -1,6 +1,6 @@
 # 현대백화점 DW · MySQL 분석 워크스페이스
 
-React + TypeScript 화면, Node.js API, **Docker Compose의 MySQL 8.4 LTS**로 구성합니다. 실시간 조회와 설정 저장은 MySQL을 사용합니다. 매출·고객·캠페인·앱·예산 분석, 데이터 카탈로그/리니지, OpenAI 커스텀 분석을 제공합니다.
+React + TypeScript 화면, Python FastAPI, **Docker Compose의 MySQL 8.4 LTS**로 구성합니다. 실시간 조회와 설정 저장은 MySQL을 사용합니다. 매출·고객·캠페인·앱·예산 분석, 데이터 카탈로그/리니지, OpenAI 커스텀 분석을 제공합니다.
 
 고객·거래는 생성 샘플입니다. 실제 현대백화점 DW와 사용자 인증은 연결하지 않았습니다.
 
@@ -12,6 +12,7 @@ React + TypeScript 화면, Node.js API, **Docker Compose의 MySQL 8.4 LTS**로 �
 cd ~/ai-prorject-hdfn
 git pull --ff-only
 npm ci
+uv sync --locked
 npm run db:up
 npm run dev
 ```
@@ -22,12 +23,13 @@ npm run dev
 
 ## 처음 설치
 
-필수: **Node.js 24 이상**, Git, Docker Desktop(Compose v2 포함), VS Code.
+필수: **Python 3.12 이상, uv, Node.js 24 이상**, Git, Docker Desktop(Compose v2 포함), VS Code. uv 설치: https://docs.astral.sh/uv/getting-started/installation/
 
 ```bash
 git clone https://github.com/iiii666/ai-prorject-hdfn.git
 cd ai-prorject-hdfn
 npm ci
+uv sync --locked
 cp .env.example .env
 npm run db:up
 npm run dev
@@ -40,8 +42,8 @@ VS Code에서 `파일 → 폴더 열기`로 프로젝트를 엽니다. `code .` 
 ## 구성
 
 ```text
-브라우저 :5173 → Vite /api 프록시 → Node.js API :3001
-                                      ↓ mysql2 연결 풀
+브라우저 :5173 → Vite /api 프록시 → Python FastAPI :3001
+                                      ↓ asyncmy 연결 풀
                            MySQL 8.4 컨테이너 :3306
                                       ↓
                            mysql_data 영속 볼륨
@@ -70,7 +72,7 @@ DB_PASSWORD=dw_local_password
 MYSQL_ROOT_PASSWORD=dw_local_root_password
 ```
 
-기본 비밀번호는 로컬 개발용입니다. DB 포트가 충돌하면 `.env`에서 `DB_PORT=3307`로 변경하고 컨테이너와 앱을 다시 실행하세요. Compose와 Node가 같은 `.env`의 포트를 사용합니다. DB 계정/비밀번호 초기화 환경 변수는 **볼륨이 처음 만들어질 때만 적용**됩니다. 기존 볼륨의 비밀번호는 `.env` 변경만으로 바뀌지 않으며, SQL로 변경하거나 별도 개발 DB를 구성해야 합니다.
+기본 비밀번호는 로컬 개발용입니다. DB 포트가 충돌하면 `.env`에서 `DB_PORT=3307`로 변경하고 컨테이너와 앱을 다시 실행하세요. Compose와 Python이 같은 `.env`의 포트를 사용합니다. DB 계정/비밀번호 초기화 환경 변수는 **볼륨이 처음 만들어질 때만 적용**됩니다. 기존 볼륨의 비밀번호는 `.env` 변경만으로 바뀌지 않으며, SQL로 변경하거나 별도 개발 DB를 구성해야 합니다.
 
 DB 접속 정보/키를 변경했으면 서버를 재시작하세요. MySQL이 연결되지 않으면 API는 시작 오류를 표시하며 SQLite로 대체하지 않습니다.
 
@@ -135,7 +137,7 @@ SQLite 원본은 읽기 전용으로 열고 기존 테이블 데이터를 MySQL�
 
 `.env`의 `OPENAI_API_KEY`에 발급받은 키를 넣고 서버를 재시작하면 왼쪽 **커스텀 분석**을 사용할 수 있습니다. ChatGPT 구독과 OpenAI API 요금은 별도입니다.
 
-질문은 규칙 검사와 모델의 범위 검사를 거칩니다. 개인정보·지침 우회·DB 변경·무관한 요청은 차단합니다. LLM에 SQL 실행 권한/도구나 원본 고객 행을 제공하지 않으며 **질문과 MySQL 집계값만 OpenAI로 전송**합니다. Responses API 구조화 응답과 `store: false`를 사용합니다. 모델명 기본값은 `gpt-4.1-mini`입니다.
+질문은 규칙 검사와 모델의 범위 검사를 거칩니다. 개인정보·지침 우회·DB 변경·무관한 요청은 차단합니다. LLM에 SQL 실행 권한/도구나 원본 고객 행을 제공하지 않으며 **질문과 MySQL 집계값만 OpenAI로 전송**합니다. 공식 Python SDK의 `AsyncOpenAI().responses.create()`로 Responses API 구조화 응답과 `store=False`를 사용합니다. SDK 자동 재시도는 비활성화합니다. 모델명 기본값은 `gpt-4.1-mini`입니다.
 
 점포별 순위/비중/전년 동기, 채널/상품군/고객등급, 월별 추이, 캠페인/예산/앱 근거를 전달합니다. 화면의 검증 표와 차트는 모델 생성 숫자가 아닌 서버 집계입니다. 보유한 점포 데이터를 “미제공”이라고 쓰는 알려진 모순은 한 번 재검토하고, 계속 모순되면 오류 처리합니다. 모든 자연어의 오류나 우회를 완벽하게 검증하는 장치는 아닙니다.
 
@@ -149,24 +151,45 @@ SQLite 원본은 읽기 전용으로 열고 기존 테이블 데이터를 MySQL�
 npm run dev             # MySQL 준비 → API + Vite
 npm run build           # TypeScript 검사 + 프론트엔드 빌드
 npm start               # API + 빌드 화면: http://localhost:3001
-npm test                # 격리된 메모리 테스트 픽스처의 로직/정합성 검사
+npm test                # Python 업무 규칙/API/SDK/기존 결과 회귀 검사
 npm run test:mysql      # 실행 중인 실제 MySQL의 쿼리/API/제약/집계 검사
 ```
 
-`npm test`의 격리 픽스처와 최초 샘플 생성기는 기존 생성 로직을 재사용하기 위해 Node 내장 SQLite를 **메모리에서만** 사용합니다. 웹 서비스의 저장/조회에는 SQLite를 사용하지 않습니다. `test:mysql`은 실제 MySQL 없이는 성공하지 않으며 DB 데이터를 삭제하지 않습니다. 설정 변경 테스트는 원래 값을 복구하고 FK 오류 테스트는 롤백합니다. 모델 응답 테스트는 대역을 사용하므로 OpenAI 비용이 발생하지 않습니다.
+`npm test`는 Python에서 생성한 고정 기준일 샘플을 테스트 전용 메모리 SQLite에 적재해 기존 Node.js 결과와 집계·주문·예측을 비교합니다. **서비스와 샘플 생성기는 메모리 SQLite를 사용하지 않습니다.** 모델 응답은 공식 SDK의 HTTP 대역으로 검증하므로 OpenAI 비용이 발생하지 않습니다.
+
+MySQL 통합 검사는 기준일 `2026-11-10`의 고정 샘플을 사용하는 **별도 DB·볼륨**에서 실행하세요. 기존 업무 DB에는 실행하지 마세요. 아래 명령은 기존 기본 프로젝트의 볼륨을 변경하지 않습니다.
+
+```bash
+DB_PORT=33316 docker compose -p dw-python-test up -d --wait mysql
+DB_PORT=33316 DW_SEED_END=2026-11-10 npm run test:mysql
+DB_PORT=33316 docker compose -p dw-python-test down
+```
+
+기본 테스트는 MySQL 검사를 건너뛰며, `test:mysql`은 실제 MySQL 8.4가 없으면 실패합니다. 설정 저장 테스트는 원래 값을 복구합니다. 외부 환경변수가 `.env`보다 우선합니다. Python 서버는 기본 단일 worker로 실행하며 분석 제한은 프로세스 단위입니다.
 
 프로덕션 빌드 검증과 실제 MySQL 통합 검사를 GitHub Actions에서도 실행합니다.
 
+브라우저 확인은 실행 중인 격리 테스트 서버를 대상으로 `uv run python scripts/browser_smoke.py`로 수행합니다. 최초에는 `uv run playwright install chromium`이 필요합니다. 설치된 Chrome/Chromium을 사용하려면 `CHROMIUM_PATH`를 지정하고, 개발 서버는 `APP_URL=http://127.0.0.1:5173`을 지정합니다.
+
 ```text
 compose.yaml              # MySQL 8.4 + healthcheck + 영속 볼륨
-server/db.mjs             # mysql2 연결 풀, 비동기 SQL, 초기화/일괄 적재
-server/schema.sql         # MySQL InnoDB 테이블/FK/인덱스/뷰
-server/config.mjs         # 서버 환경 파일 로딩
-server/fixtures/          # 격리된 샘플 생성기/선택적 SQLite 읽기 전용 이관
-server/analytics.mjs      # 분석 SQL
-server/evidence.mjs       # LLM에 전달하는 집계 근거
-server/custom.mjs         # 질문 제한, 예측, OpenAI 분석
+backend/app.py            # FastAPI, API 계약, 정적 React 파일 제공
+backend/db.py             # asyncmy 풀, 트랜잭션, 초기화/일괄 적재
+backend/schema.sql        # 기존 MySQL 스키마
+backend/seed_data.py      # Python 샘플·과거·운영 이력 생성
+backend/analytics.py      # 대시보드·카탈로그·주문 집계
+backend/evidence.py       # LLM에 전달하는 집계 근거
+backend/custom.py         # 예측, 질문 제한, 공식 OpenAI SDK
+backend/config.py         # .env 설정 (외부 환경변수 우선)
+tests/python/             # Python 회귀·API·SDK·MySQL 검사
+tests/fixtures/           # 이전 버전 기준 결과와 테스트 SQL 스키마
 src/                      # React 화면
 ```
 
 주요 API: `/api/health`, `/api/bootstrap`, `/api/analytics`, `/api/orders`, `/api/catalog`, `/api/export`, `PATCH /api/settings`, `/api/custom/status`, `POST /api/custom/analyze`.
+
+## Python 전환과 복구
+
+기존 API 경로·응답과 MySQL 스키마를 유지했습니다. 이전 Node.js 기준 커밋은 `462a7a99a9bd2e250be5e430241a484af523b636`입니다. 전환 전 기존 MySQL의 백업을 확보하세요. 코드 업데이트 과정에서 DB 볼륨을 삭제하거나 샘플을 재생성할 필요는 없습니다.
+
+복구가 필요하면 Python/Vite를 종료한 뒤 이전 커밋을 별도 체크아웃하고 해당 버전에서 `npm ci`, `npm run build`, `npm start`를 실행합니다. 기존 DB 접속 설정을 사용하며 두 서버를 같은 포트에서 동시에 실행하지 않습니다. 이번 전환에는 스키마 변경이 없어 코드 복구만으로 기존 서버를 다시 사용할 수 있습니다.

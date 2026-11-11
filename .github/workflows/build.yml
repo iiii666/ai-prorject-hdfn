@@ -8,15 +8,25 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DW_SEED_END: '2026-11-10'
+      COMPOSE_PROJECT_NAME: dw-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.13.5'
+          python-version: '3.12'
+          enable-cache: true
+      - run: uv sync --locked
       - run: npm ci
-      - run: npm test
       - run: npm run build
+      - run: uv run ruff check backend tests/python
+      - run: npm test
       - run: npm run db:up
       - run: npm run test:mysql
       - if: always()
