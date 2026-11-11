@@ -1,3 +1,6 @@
+import { initializeApps } from "./app-store.mjs";
+import { startAgentScheduler } from "./metric-agents.mjs";
+import { workspaceApi } from "./workspace-api.mjs";
 import "./config.mjs";
 import { customAnalysis, customStatus, AnalysisError } from "./custom.mjs";
 import { createServer } from "node:http";
@@ -25,7 +28,7 @@ async function body(req) {
   let text = "";
   for await (const chunk of req) {
     text += chunk;
-    if (text.length > 4096) throw new Error("400:요청이 너무 큽니다.");
+    if (text.length > 16384) throw new Error("400:요청이 너무 큽니다.");
   }
   try {
     return JSON.parse(text);
@@ -37,6 +40,32 @@ export const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     const p = url.pathname;
+    if (p.startsWith("/api/my-apps") || p.startsWith("/api/metric-agents")) {
+      if (!["GET", "HEAD"].includes(req.method)) {
+        const origin = req.headers.origin;
+        const allowedOrigin =
+          process.env.APP_ORIGIN || `http://${req.headers.host}`;
+        if (
+          (origin && origin !== allowedOrigin) ||
+          req.headers["sec-fetch-site"] === "cross-site"
+        )
+          return json(
+            res,
+            { error: "같은 사이트에서만 변경할 수 있습니다." },
+            403,
+          );
+      }
+      try {
+        return json(
+          res,
+          await workspaceApi(p, req.method, () => body(req), url.searchParams),
+        );
+      } catch (e) {
+        if (e instanceof AnalysisError)
+          return json(res, { error: e.message }, e.status);
+        throw e;
+      }
+    }
     if (p === "/api/custom/status" && req.method === "GET")
       return json(res, await customStatus());
     if (p === "/api/custom/analyze" && req.method === "POST") {
@@ -214,6 +243,7 @@ export const server = createServer(async (req, res) => {
 });
 try {
   await initialize();
+  await initializeApps();
 } catch (e) {
   console.error(
     "MySQL 연결/초기화 실패. Docker Desktop 실행 후 npm run db:up 및 DB 접속 설정을 확인하세요. 코드:",
@@ -222,6 +252,7 @@ try {
   await close();
   throw new Error("MySQL 초기화에 실패했습니다.");
 }
+const stopScheduler = await startAgentScheduler();
 const port = Number(process.env.PORT || 3001);
 server.listen(port, "127.0.0.1", () => {
   console.log(
@@ -240,9 +271,13 @@ server.on("error", (e) => {
   process.exit(1);
 });
 for (const signal of ["SIGINT", "SIGTERM"])
-  process.on(signal, () =>
-    server.close(async () => {
-      await close();
-      process.exit(0);
-    }),
+  process.on(
+    signal,
+    () => (
+      stopScheduler(),
+      server.close(async () => {
+        await close();
+        process.exit(0);
+      })
+    ),
   );
