@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { History, RefreshCw, Play, Bell } from "lucide-react";
 import { request } from "./api";
 import { Panel, timestamp } from "./components";
-import type { Run, Meta } from "./MyAnalysisApps";
+import type { Run, Meta } from "./analysis-types";
 import AgentRunReport, { runKinds } from "./AgentRunReport";
 import "./agent-history.css";
 type HistoryRun=Run & {agent_id:string;agent_name:string;app_id:string};

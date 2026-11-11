@@ -1,4 +1,4 @@
-import type { Run, Meta } from "./MyAnalysisApps";
+import type { Run, Meta } from "./analysis-types";
 import { DataTable, timestamp } from "./components";
 const fmt = (n: number | null | undefined, unit = "") =>
   n == null

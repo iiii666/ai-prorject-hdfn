@@ -48,7 +48,7 @@ with sync_playwright() as p:
     page.get_by_role("tab",name="감시 실행 이력",exact=True).click()
     page.get_by_test_id("history-record").first.locator(".app-run > summary").click()
     page.get_by_test_id("history-record").first.get_by_role("button",name="연결된 분석 앱 열기",exact=True).click()
-    expect(page.get_by_role("heading",name="분석 앱 수정",exact=True)).to_be_visible()
+    expect(page.get_by_role("heading",name="저장한 분석",exact=True)).to_be_visible()
     page.get_by_role("tab",name="감시 실행 이력",exact=True).click()
     page.set_viewport_size({"width":390,"height":844})
     expect(page.get_by_test_id("history-record")).to_have_count(5)

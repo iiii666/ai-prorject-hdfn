@@ -49,6 +49,7 @@ export const DIMENSIONS = {
   channel: "채널별",
   category: "상품군별",
   day: "일별",
+  grade: "고객 등급별",
 };
 export const bad = (message, status = 400) => {
   throw new AnalysisError(status, message);
@@ -74,6 +75,22 @@ export function validateSpec(raw) {
     metrics.some((m) => !["sales", "orders", "averageOrder"].includes(m))
   )
     bad("상품군별 분석은 매출·주문·객단가만 지원합니다.");
+  if (
+    dimension === "grade" &&
+    metrics.some(
+      (m) =>
+        !["sales", "orders", "averageOrder", "activeCustomers"].includes(m),
+    )
+  )
+    bad("고객 등급별은 매출·주문·객단가·활성 고객만 지원합니다.");
+  if (
+    raw.end !== undefined &&
+    (typeof raw.end !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(raw.end) ||
+      !Number.isFinite(Date.parse(raw.end)) ||
+      new Date(raw.end).toISOString().slice(0, 10) !== raw.end)
+  )
+    bad("저장할 분석 종료일을 확인하세요.");
   if (!Number.isInteger(days) || days < 1 || days > 90)
     bad("분석 기간은 1~90일입니다.");
   if (!["previous", "year"].includes(comparison))
@@ -84,6 +101,7 @@ export function validateSpec(raw) {
     bad("채널을 확인하세요.");
   if (!["bar", "line", "table"].includes(chart)) bad("차트 형식을 확인하세요.");
   return {
+    ...(raw.end ? { end: raw.end } : {}),
     title: title.trim(),
     metrics,
     dimension,

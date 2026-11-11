@@ -1,0 +1,93 @@
+export type Spec = {
+  title: string;
+  end?: string;
+  metrics: string[];
+  dimension: string;
+  days: number;
+  comparison: string;
+  store: string;
+  channel: string;
+  chart: string;
+};
+export type SavedApp = {
+  id: string;
+  title: string;
+  spec: Spec;
+  version: number;
+  updated_at: string;
+};
+export type Meta = {
+  metrics: Record<
+    string,
+    { label: string; unit: string; definition: string; source: string }
+  >;
+  dimensions: Record<string, string>;
+  aiConfigured: boolean;
+};
+export type Metric = {
+  value: number | null;
+  previous: number | null;
+  change: number | null;
+  difference: number | null;
+};
+export type Data = {
+  spec: Spec;
+  range: {
+    start: string;
+    end: string;
+    previousStart: string;
+    previousEnd: string;
+  };
+  rows: { id: string; label: string; metrics: Record<string, Metric> }[];
+  complete: boolean;
+  notes: string[];
+  queriedAt: string;
+};
+export type Config = {
+  name: string;
+  frequency: string;
+  weekday: number;
+  time: string;
+  metric: string;
+  condition: string;
+  threshold: number;
+  period: string;
+};
+export type Agent = {
+  id: string;
+  app_id: string;
+  name: string;
+  config: Config;
+  enabled: boolean;
+  next_run: string;
+};
+export type Run = {
+  id: string;
+  kind: string;
+  status: string;
+  created_at: string;
+  finished_at: string;
+  report: {
+    replay?: { asOf: string; source: string; description: string };
+    summary?: string;
+    appTitle?: string;
+    appVersion?: number;
+    config?: Config;
+    range?: Data["range"];
+    rows?: (Data["rows"][number] & { matched: boolean | null })[];
+    investigations?: {
+      group: string;
+      details: {
+        dimension: string;
+        rows: {
+          label: string;
+          value: number;
+          previous: number;
+          difference: number;
+        }[];
+      }[];
+    }[];
+    steps?: string[];
+    notes?: string[];
+  };
+};
