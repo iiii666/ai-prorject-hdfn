@@ -12,7 +12,8 @@
     "test": "node scripts/test.mjs",
     "db:up": "docker compose up -d --wait mysql",
     "db:down": "docker compose down",
-    "test:mysql": "node --test tests/mysql.integration.mjs tests/workspace.test.mjs"
+    "test:mysql": "node --test tests/mysql.integration.mjs tests/workspace.test.mjs",
+    "db:demo": "node scripts/seed-agent-demo.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

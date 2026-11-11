@@ -12,6 +12,10 @@ React + TypeScript 화면, Node.js API, **Docker Compose의 MySQL 8.4 LTS**로 �
 
 설치·설정·판정 규칙·아키텍처·API·운영 한계는 [상세 사용/개발 가이드](docs/my-analysis-apps.md)를 참고하세요. 서버를 재시작하면 새 저장 테이블이 자동 추가됩니다.
 
+## 감시 시연 이력
+
+**내 분석 앱 → 감시 실행 이력 → 시연 이력 준비 / 불러오기**에서 최근 8주와 판단 보류 사례, 총 9건을 준비할 수 있습니다. 실제 샘플 DB를 재조회한 과거 재현 기록으로, 정기·시험 실행과 구분합니다. 상태·에이전트·유형·기록일 필터와 보고서 상세를 제공합니다. 명령으로는 `npm run db:demo`를 실행하세요. [시연 가이드](docs/agent-history-demo.md)
+
 ## 기존 프로젝트 업데이트
 
 실행 중인 서버를 `Ctrl+C`로 종료하고 **Docker Desktop**을 설치·실행한 뒤 VS Code 터미널에서 실행하세요. macOS Intel/Apple Silicon 모두 공식 MySQL 멀티 아키텍처 이미지를 사용합니다.
