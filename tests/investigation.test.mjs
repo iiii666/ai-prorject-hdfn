@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 process.env.PORT = "0";
@@ -247,19 +248,46 @@ test("proposal writes nothing before approval; approval atomically saves snapsho
   let s = await make();
   for (let i = 0; i < 3; i++)
     s = await investigationStep(s.id, { version: s.version });
-  const before = await one("SELECT COUNT(*) n FROM analysis_apps");
+  const uniqueTitle = "승인 검증 " + randomUUID();
+  const count = () =>
+    one("SELECT COUNT(*) n FROM analysis_apps WHERE title=?", [uniqueTitle]);
+  const before = await count();
   s = await sendInvestigationMessage(s.id, {
     version: s.version,
     prompt: "이 결과를 분석 화면으로 저장하고 매주 확인해줘",
   });
-  s = await investigationStep(s.id, { version: s.version });
+  s.state.mode = "live";
+  const { persistInvestigation } =
+    await import("../server/investigation-store.mjs");
+  s = await persistInvestigation(s, s.version);
+  s = await investigationStep(
+    s.id,
+    { version: s.version },
+    {
+      call: async (_system, input) =>
+        decision(input.currentScope, {
+          kind: "proposal",
+          text: "조회 근거로 저장 초안을 준비했습니다.",
+          evidenceIds: input.evidence
+            .filter((e) => e.tool !== "inspect_catalog")
+            .map((e) => e.id),
+          draft: {
+            title: uniqueTitle,
+            frequency: "weekly",
+            weekday: 1,
+            time: "09:00",
+            threshold: 10,
+          },
+        }),
+    },
+  );
   const p = s.state.rounds.at(-1).proposal;
   assert.equal(p.status, "pending");
-  assert.equal((await one("SELECT COUNT(*) n FROM analysis_apps")).n, before.n);
+  assert.equal((await count()).n, before.n);
   const input = {
     version: s.version,
     proposalId: p.id,
-    title: "확인한 조사 결과",
+    title: uniqueTitle,
     config: p.config,
     enabled: false,
   };
@@ -269,7 +297,7 @@ test("proposal writes nothing before approval; approval atomically saves snapsho
       config: { ...p.config, time: "25:00" },
     }),
   );
-  assert.equal((await one("SELECT COUNT(*) n FROM analysis_apps")).n, before.n);
+  assert.equal((await count()).n, before.n);
   const approved = await approveInvestigation(s.id, input),
     saved = approved.state.rounds.at(-1).proposal.saved;
   exports.push(saved.appId);
@@ -284,10 +312,7 @@ test("proposal writes nothing before approval; approval atomically saves snapsho
   assert.equal(JSON.parse(agent.config).time, "09:00");
   const again = await approveInvestigation(s.id, input);
   assert.deepEqual(again.state.rounds.at(-1).proposal.saved, saved);
-  assert.equal(
-    (await one("SELECT COUNT(*) n FROM analysis_apps")).n,
-    before.n + 1,
-  );
+  assert.equal((await count()).n, before.n + 1);
 });
 test("grade, app conversion and budget tools execute against selected source scope", async () => {
   const scope = await defaultScope();
