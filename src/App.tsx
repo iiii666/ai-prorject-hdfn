@@ -1,3 +1,4 @@
+import MyAnalysisApps from "./MyAnalysisApps";
 import CustomAnalysis from "./CustomAnalysis";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -37,6 +38,7 @@ const icons = {
   lineage: Network,
   settings: SettingsIcon,
   custom: Sparkles,
+  myapps: LayoutDashboard,
 };
 const getPage = (): Page =>
   Object.hasOwn(pageNames, location.hash.slice(1))
@@ -53,6 +55,7 @@ const descriptions: Record<Page, string> = {
   catalog: "MySQL 테이블과 SQL 뷰의 스키마·행 수를 조회합니다.",
   lineage: "실제 SQL 뷰의 데이터 흐름과 영향 범위를 확인합니다.",
   custom: "DW 데이터에 질문하고 OpenAI 분석과 매출 시나리오를 확인합니다.",
+  myapps: "나만의 분석 화면을 만들고 지표 감시 에이전트로 변화를 확인합니다.",
   settings: "DB에 저장되는 워크스페이스 설정과 데이터 정보를 관리합니다.",
 };
 function Dialog({
@@ -124,9 +127,13 @@ export default function App() {
     revision,
   );
   const catalog = useApi<Catalog>(bootstrap ? "/api/catalog" : null, revision);
-  const analyticPage = !["catalog", "lineage", "settings", "custom"].includes(
-    page,
-  );
+  const analyticPage = ![
+    "catalog",
+    "lineage",
+    "settings",
+    "custom",
+    "myapps",
+  ].includes(page);
   useEffect(() => {
     const controller = new AbortController();
     request<Bootstrap>("/api/bootstrap", { signal: controller.signal })
@@ -561,6 +568,7 @@ export default function App() {
               ))
             ))}
           {page === "custom" && <CustomAnalysis bootstrap={bootstrap} />}
+          {page === "myapps" && <MyAnalysisApps bootstrap={bootstrap} />}
           {page === "settings" && (
             <SettingsPage
               bootstrap={bootstrap}

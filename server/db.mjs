@@ -48,6 +48,7 @@ export async function transaction(fn) {
     try {
       const out = await fn({
         run: async (sql, args) => db.prepare(sql).run(...args),
+        one: async (sql, args = []) => db.prepare(sql).get(...args),
       });
       db.exec("COMMIT");
       return out;
@@ -61,6 +62,8 @@ export async function transaction(fn) {
     await c.beginTransaction();
     const result = await fn({
       run: (sql, args = []) => c.query(normalize(sql), args),
+      one: async (sql, args = []) =>
+        (await c.query(normalize(sql), args))[0][0],
     });
     await c.commit();
     return result;
