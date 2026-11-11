@@ -13,7 +13,9 @@ with sync_playwright() as p:
     errors=[];held=[];first=[True]
     page.on('pageerror',lambda e:errors.append(str(e)))
     def hold_step(route):
-        if first[0]:first[0]=False;held.append(route)
+        if first[0]:
+            first[0]=False;held.append(route)
+            page.evaluate('window.__investigationStepHeld = true')
         else:route.continue_()
     page.route('**/api/investigations/*/step',hold_step)
     page.goto(base+'/#investigator')
@@ -23,6 +25,7 @@ with sync_playwright() as p:
     page.get_by_role('textbox',name='조사 요청',exact=True).fill('지난주 매출이 감소한 점포를 조사해줘 '+token)
     page.get_by_role('button',name='조사 시작',exact=True).click()
     expect(page.locator('.invest-working')).to_be_visible(timeout=15000)
+    page.wait_for_function('window.__investigationStepHeld === true')
     assert held,'expected first step to be pending'
     page.get_by_role('textbox',name='조사 요청',exact=True).fill('오프라인 말고 모바일 쪽만 더 봐줘')
     page.get_by_role('button',name='후속 요청 보내기',exact=True).click()
