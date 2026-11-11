@@ -1,3 +1,5 @@
+import { initializeInvestigations } from "./investigation-store.mjs";
+import { investigationApi } from "./investigation-api.mjs";
 import { initializeApps } from "./app-store.mjs";
 import { startAgentScheduler } from "./metric-agents.mjs";
 import { workspaceApi } from "./workspace-api.mjs";
@@ -40,7 +42,11 @@ export const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     const p = url.pathname;
-    if (p.startsWith("/api/my-apps") || p.startsWith("/api/metric-agents")) {
+    if (
+      p.startsWith("/api/my-apps") ||
+      p.startsWith("/api/metric-agents") ||
+      p.startsWith("/api/investigations")
+    ) {
       if (!["GET", "HEAD"].includes(req.method)) {
         const origin = req.headers.origin;
         const allowedOrigin =
@@ -58,7 +64,14 @@ export const server = createServer(async (req, res) => {
       try {
         return json(
           res,
-          await workspaceApi(p, req.method, () => body(req), url.searchParams),
+          p.startsWith("/api/investigations")
+            ? await investigationApi(p, req.method, () => body(req))
+            : await workspaceApi(
+                p,
+                req.method,
+                () => body(req),
+                url.searchParams,
+              ),
         );
       } catch (e) {
         if (e instanceof AnalysisError)
@@ -244,6 +257,7 @@ export const server = createServer(async (req, res) => {
 try {
   await initialize();
   await initializeApps();
+  await initializeInvestigations();
 } catch (e) {
   console.error(
     "MySQL 연결/초기화 실패. Docker Desktop 실행 후 npm run db:up 및 DB 접속 설정을 확인하세요. 코드:",

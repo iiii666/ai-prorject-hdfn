@@ -24,7 +24,7 @@ jobs:
           python3 -m venv /tmp/dw-browser-venv
           /tmp/dw-browser-venv/bin/pip install playwright
           /tmp/dw-browser-venv/bin/playwright install --with-deps chromium
-      - name: Browser history demo
+      - name: Browser investigation and history
         run: |
           mkdir -p work
           npm start > work/browser-server.log 2>&1 &
@@ -32,6 +32,7 @@ jobs:
             if curl -fsS http://127.0.0.1:3001/api/health >/dev/null; then break; fi
             sleep 1
           done
+          /tmp/dw-browser-venv/bin/python tests/investigation_browser_smoke.py
           /tmp/dw-browser-venv/bin/python tests/history_browser_smoke.py
       - uses: actions/upload-artifact@v4
         if: always()

@@ -1,4 +1,4 @@
-import MyAnalysisApps from "./MyAnalysisApps";
+import InvestigationWorkspace from "./InvestigationWorkspace";
 import CustomAnalysis from "./CustomAnalysis";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -38,12 +38,14 @@ const icons = {
   lineage: Network,
   settings: SettingsIcon,
   custom: Sparkles,
-  myapps: LayoutDashboard,
+  investigator: Sparkles,
 };
 const getPage = (): Page =>
-  Object.hasOwn(pageNames, location.hash.slice(1))
-    ? (location.hash.slice(1) as Page)
-    : "overview";
+  location.hash.slice(1) === "myapps"
+    ? "investigator"
+    : Object.hasOwn(pageNames, location.hash.slice(1))
+      ? (location.hash.slice(1) as Page)
+      : "overview";
 const descriptions: Record<Page, string> = {
   overview:
     "DB에 저장된 고객, 매출, 캠페인, 앱 이용과 예산을 한눈에 조회합니다.",
@@ -55,7 +57,8 @@ const descriptions: Record<Page, string> = {
   catalog: "MySQL 테이블과 SQL 뷰의 스키마·행 수를 조회합니다.",
   lineage: "실제 SQL 뷰의 데이터 흐름과 영향 범위를 확인합니다.",
   custom: "DW 데이터에 질문하고 OpenAI 분석과 매출 시나리오를 확인합니다.",
-  myapps: "나만의 분석 화면을 만들고 지표 감시 에이전트로 변화를 확인합니다.",
+  investigator:
+    "조회 근거에 따라 다음 도구를 선택하고, 대화로 조사를 이어갑니다.",
   settings: "DB에 저장되는 워크스페이스 설정과 데이터 정보를 관리합니다.",
 };
 function Dialog({
@@ -132,7 +135,7 @@ export default function App() {
     "lineage",
     "settings",
     "custom",
-    "myapps",
+    "investigator",
   ].includes(page);
   useEffect(() => {
     const controller = new AbortController();
@@ -568,7 +571,9 @@ export default function App() {
               ))
             ))}
           {page === "custom" && <CustomAnalysis bootstrap={bootstrap} />}
-          {page === "myapps" && <MyAnalysisApps bootstrap={bootstrap} />}
+          {page === "investigator" && (
+            <InvestigationWorkspace bootstrap={bootstrap} />
+          )}
           {page === "settings" && (
             <SettingsPage
               bootstrap={bootstrap}

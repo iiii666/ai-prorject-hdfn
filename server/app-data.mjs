@@ -21,18 +21,20 @@ export function ranges(spec, end) {
       spec.comparison === "year" ? previousYear(end) : dateAdd(start, -1),
   };
 }
-async function grouped(spec, start, end, categoryFilter) {
+async function grouped(spec, start, end, categoryFilter, gradeFilter) {
   const args = [
     start,
     end,
     ...(spec.store ? [Number(spec.store)] : []),
     ...(spec.channel ? [spec.channel] : []),
     ...(categoryFilter ? [categoryFilter] : []),
+    ...(gradeFilter ? [gradeFilter] : []),
   ];
   const scope = (alias) =>
     `${spec.store ? ` AND ${alias}.store_id=?` : ""}${spec.channel ? ` AND ${alias}.channel=?` : ""}`;
   const group = (alias, date, category = false) => {
     if (category) return ["p.category", "p.category"];
+    if (spec.dimension === "grade") return ["c.grade", "c.grade"];
     return spec.dimension === "store"
       ? [`CAST(${alias}.store_id AS TEXT)`, "s.name"]
       : spec.dimension === "channel"
@@ -50,7 +52,7 @@ async function grouped(spec, start, end, categoryFilter) {
   const [key, label] = group("o", "ordered_at", spec.dimension === "category");
   const category = spec.dimension === "category" || !!categoryFilter;
   const sales = await all(
-    `SELECT ${key} id,${label} label,COALESCE(SUM(${category ? "i.quantity*i.unit_price" : "o.amount"}),0) sales,COUNT(DISTINCT o.id) orders,COUNT(DISTINCT o.customer_id) activeCustomers FROM dw_fact_orders o JOIN stores s ON s.id=o.store_id ${category ? "JOIN order_items i ON i.order_id=o.id JOIN products p ON p.id=i.product_id" : ""} WHERE o.ordered_at BETWEEN ? AND ?${scope("o")}${categoryFilter ? " AND p.category=?" : ""} GROUP BY ${key},${label} ORDER BY ${key}`,
+    `SELECT ${key} id,${label} label,COALESCE(SUM(${category ? "i.quantity*i.unit_price" : "o.amount"}),0) sales,COUNT(DISTINCT o.id) orders,COUNT(DISTINCT o.customer_id) activeCustomers FROM dw_fact_orders o JOIN stores s ON s.id=o.store_id ${spec.dimension === "grade" || gradeFilter ? "JOIN customers c ON c.id=o.customer_id" : ""} ${category ? "JOIN order_items i ON i.order_id=o.id JOIN products p ON p.id=i.product_id" : ""} WHERE o.ordered_at BETWEEN ? AND ?${scope("o")}${categoryFilter ? " AND p.category=?" : ""}${gradeFilter ? " AND c.grade=?" : ""} GROUP BY ${key},${label} ORDER BY ${key}`,
     args,
   );
   for (const r of sales) r.averageOrder = r.orders ? r.sales / r.orders : null;
@@ -94,11 +96,11 @@ async function grouped(spec, start, end, categoryFilter) {
 }
 export async function appData(
   raw,
-  { end, strictCoverage = false, categoryFilter } = {},
+  { end, strictCoverage = false, categoryFilter, gradeFilter } = {},
 ) {
   const spec = await validateStore(validateSpec(raw));
   const seed = await one("SELECT * FROM seed_info");
-  const range = ranges(spec, end || seed.end_date);
+  const range = ranges(spec, end || spec.end || seed.end_date);
   const operational =
     (await one("SELECT value FROM settings WHERE key='operationalStart'"))
       ?.value || seed.start_date;
@@ -127,8 +129,14 @@ export async function appData(
       ],
     };
   const [current, previous] = await Promise.all([
-    grouped(spec, range.start, range.end, categoryFilter),
-    grouped(spec, range.previousStart, range.previousEnd, categoryFilter),
+    grouped(spec, range.start, range.end, categoryFilter, gradeFilter),
+    grouped(
+      spec,
+      range.previousStart,
+      range.previousEnd,
+      categoryFilter,
+      gradeFilter,
+    ),
   ]);
   const ids = new Set([
     ...current.map((r) => r.id),

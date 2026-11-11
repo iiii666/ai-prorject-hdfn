@@ -182,6 +182,7 @@ export async function investigate(app, config, now = new Date()) {
           {
             end: data.range.end,
             strictCoverage: true,
+            gradeFilter: spec.dimension === "grade" ? row.id : undefined,
             categoryFilter:
               spec.dimension === "category" ? row.label : undefined,
           },
