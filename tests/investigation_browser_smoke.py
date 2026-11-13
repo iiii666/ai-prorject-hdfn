@@ -68,7 +68,7 @@ with sync_playwright() as p:
         page.get_by_role('button',name='지금 확인하기',exact=True).click()
         expect(page.locator('.task-finding').first).to_be_visible(timeout=30000)
         expect(page.locator('.task-finding').first).to_contain_text('새로 발견')
-        expect(page.locator('.task-finding').first).to_contain_text('시연 · 규칙 기반 조사')
+        expect(page.locator('.task-finding').first).to_contain_text('규칙 기반 조사')
         expect(page.locator('.task-finding').first).to_contain_text('조사 완료')
         page.get_by_role('button',name='지금 확인하기',exact=True).click()
         expect(page.locator('.task-finding').first).to_contain_text('지속 중',timeout=30000)

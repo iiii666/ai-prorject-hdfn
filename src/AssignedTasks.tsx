@@ -6,6 +6,7 @@ import { Panel, timestamp } from "./components";
 import AgentRunReport, { runKinds } from "./AgentRunReport";
 import AgentHistory from "./AgentHistory";
 import TaskFindings, { investigationModes } from "./TaskFindings";
+import TaskWorkflow from "./TaskWorkflow";
 const objective = "변화가 큰 그룹을 조사하고 확인된 사실과 추가 확인할 가설을 구분해줘.";
 const runStatus: Record<string, string> = { running: "실행 중", alert: "발견사항 있음", normal: "정상", no_data: "데이터 확인 필요", error: "실행 실패" };
 export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, onOpenApp }: {
@@ -80,7 +81,6 @@ export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, 
       {selected ? <main className="task-detail" aria-label="업무 상세">
         <Panel title={selected.name} aside={<span className="app-chip">{selected.enabled ? "진행 중" : "일시 중지"}</span>}>
           <p className="task-objective">{selected.config.objective || objective}</p>
-          {selected.config.demoScenario && <p className="app-warning"><strong>발표용 합성 시나리오</strong><br/>2주 이력: 정상 → 판교점 감소. 지금 확인: 더현대 서울 감소 1건. 실제 DW 실적과 분리된 고정 시연입니다.</p>}
           <p className="muted">{selected.config.frequency === "daily" ? "매일" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][selected.config.weekday]}요일`} {selected.config.time} · 한국 시간 · {investigationModes[selected.config.investigationMode || "off"]}</p>
           <div className="invest-actions">
             <button disabled={busy || latest?.status === "running"} className="primary" onClick={() => void act(async () => {
@@ -105,6 +105,8 @@ export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, 
           </div>
           <p className="app-definition">자동 실행은 서버가 켜져 있을 때 동작합니다. 데이터가 부족하면 회복으로 판단하지 않습니다.</p>
         </Panel>
+        {latest && ["alert", "normal"].includes(latest.status) && latest.report.range &&
+          <TaskWorkflow key={`${selected.id}:${latest.id}`} agent={selected} run={latest} meta={meta}/>}
         <Panel title="최근 발견사항" aside={<small className="muted">{latest ? `${runKinds[latest.kind] || latest.kind} · ${timestamp(latest.created_at)}` : "첫 실행 대기"}</small>}>
           {findings?.length ? <TaskFindings findings={findings} meta={meta} metric={latest.report.config?.metric || selected.config.metric} onInvestigate={onInvestigate}/>
             : <div className="task-empty"><Bot size={27}/><h4>{latest?.status === "running" ? "업무를 수행하고 있습니다" : latest?.status === "normal" ? "발견 조건에 해당하는 변화가 없습니다" : latest?.status === "no_data" ? "판단할 데이터가 부족합니다" : latest?.status === "error" ? "업무를 완료하지 못했습니다" : "확인할 준비가 됐습니다"}</h4><p>{latest?.report.summary || "지금 확인하기를 누르거나 예정된 실행을 기다려주세요."}</p></div>}
@@ -114,7 +116,7 @@ export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, 
           <fieldset disabled={busy} className="invest-form">
             <label>업무 이름<input maxLength={80} value={selected.config.name} onChange={(e) => edit({ name: e.target.value })}/></label>
             <label>조사 방식<select disabled={!!selected.config.demoScenario} aria-label="조사 방식" value={selected.config.investigationMode || "off"} onChange={(e) => edit({ investigationMode: e.target.value as Config["investigationMode"] })}>
-              <option value="live" disabled={!meta.aiConfigured}>실제 AI 조사{!meta.aiConfigured ? " · API 키 필요" : ""}</option><option value="demo">시연 · 규칙 기반 조사</option><option value="off">규칙 점검</option>
+              <option value="live" disabled={!meta.aiConfigured}>실제 AI 조사{!meta.aiConfigured ? " · API 키 필요" : ""}</option><option value="demo">규칙 기반 조사</option><option value="off">규칙 점검</option>
             </select></label>
             <label className="task-wide">맡길 업무<textarea maxLength={1000} minLength={3} value={selected.config.objective || objective} onChange={(e) => edit({ objective: e.target.value })}/></label>
             <label>실행 주기<select aria-label="실행 주기" value={selected.config.frequency} onChange={(e) => edit({ frequency: e.target.value })}><option value="weekly">매주</option><option value="daily">매일</option></select></label>
@@ -125,7 +127,7 @@ export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, 
             <label>조사 시작 조건<select aria-label="조사 시작 조건" value={selected.config.condition} onChange={(e) => edit({ condition: e.target.value })}><option value="drop">상대 감소율 이상 (%)</option><option value="below">지표 값 미만</option><option value="above">지표 값 초과</option></select></label>
             <label>기준값<input type="number" min={0} value={selected.config.threshold} onChange={(e) => edit({ threshold: Number(e.target.value) })}/></label>
             <label className="invest-check"><input type="checkbox" checked={selected.enabled} onChange={(e) => setSelected({ ...selected, enabled: e.target.checked })}/>업무 활성화</label>
-            <p className="task-wide app-definition">발견한 그룹 중 지표 변화가 큰 최대 3개를 조사합니다. 실제 AI 조사는 집계 근거를 OpenAI로 전송합니다. 시연 모드는 모델을 호출하지 않습니다. 기준을 바꾸면 발견 추적을 새로 시작합니다.</p>
+            <p className="task-wide app-definition">발견한 그룹 중 지표 변화가 큰 최대 3개를 조사합니다. 실제 AI 조사는 집계 근거를 OpenAI로 전송합니다. 규칙 기반 조사는 모델을 호출하지 않습니다. 기준을 바꾸면 발견 추적을 새로 시작합니다.</p>
             <div className="invest-actions"><button className="primary" onClick={() => void act(async () => {
               const saved = await request<Agent>(`/api/metric-agents/${selected.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId: selected.app_id, config: selected.config, enabled: selected.enabled }) });
               await refresh(); await open(saved); setNotice("업무 설정을 저장했습니다.");

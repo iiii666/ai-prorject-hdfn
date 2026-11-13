@@ -97,8 +97,8 @@ export async function scenarioReport(app, config, phase = 2) {
   const alertCount = rows.filter((r) => r.matched).length;
   return { ...data, rows, config, status: alertCount ? "alert" : "normal", alertCount,
     appTitle: app.title, appVersion: app.version, investigations: [],
-    summary: alertCount ? `${alertCount}개 점포에서 시연 조건을 발견했습니다.` : "시연 조건에 해당하는 점포가 없습니다.",
-    steps: ["발표용 합성 데이터의 주차·점포 범위 확인", "동일 시나리오에서 현재·비교 매출 집계", "점포별 감소 조건 평가"],
+    summary: alertCount ? `${alertCount}개 점포에서 감소 조건을 발견했습니다.` : "감소 조건에 해당하는 점포가 없습니다.",
+    steps: ["주차·점포 범위 확인", "현재·비교 매출 집계", "점포별 감소 조건 평가"],
     ...(phase < 2 ? { replay: { asOf: new Date(dateAdd(data.range.end, 1) + "T09:00:00+09:00").toISOString(), source: "synthetic_scenario", description: SCENARIO_DESCRIPTION } } : {}),
   };
 }
@@ -112,11 +112,11 @@ export async function seedPresentationTask(agentId) {
     const dow = new Date(seed.end_date + "T00:00:00Z").getUTCDay();
     const anchorEnd = dateAdd(seed.end_date, -(dow === 0 ? 7 : dow));
     const app = await saveApp({ prompt: "발표용 합성 시나리오", spec: {
-      title: "[시연] 점포별 주간 매출 조사", metrics: ["sales", "orders"], dimension: "store",
+      title: "점포별 주간 매출 조사", metrics: ["sales", "orders"], dimension: "store",
       days: 7, comparison: "previous", store: "", channel: "", chart: "bar",
     } });
     agent = await saveAgent({ appId: app.id, enabled: false, config: {
-      ...agent.config, name: "[시연] 점포별 주간 매출 조사", investigationMode: "demo",
+      ...agent.config, name: "점포별 주간 매출 조사", investigationMode: "demo",
       metric: "sales", condition: "drop", threshold: 10, period: "week",
       demoScenario: { id: PRESENTATION_SCENARIO, anchorEnd },
     } }, agentId);

@@ -66,6 +66,8 @@ export async function runTaskInvestigation(input, dependencies = {}) {
   };
   let session;
   try {
+    const { taskMemory } = await import("./task-workflow.mjs");
+    const memory = await taskMemory(agent.id, finding.key, runId);
     session = await (dependencies.create || createInvestigation)({
       mode, scope,
       prompt: finding.group + " 그룹의 매출·지표 변화를 조사하고, 확인 사실과 추가 확인할 가설을 정리해줘.",
@@ -73,6 +75,7 @@ export async function runTaskInvestigation(input, dependencies = {}) {
       agentId: agent.id, runId, group: finding.group, filters,
       ...(report.demonstration ? { demonstration: report.demonstration } : {}),
       objective: agent.config.objective,
+      memory,
       trigger: { metric: agent.config.metric, condition: agent.config.condition,
         threshold: agent.config.threshold, observation: finding.metric },
       previous: previous ? {

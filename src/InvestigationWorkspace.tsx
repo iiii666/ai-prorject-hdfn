@@ -294,7 +294,6 @@ export default function InvestigationWorkspace({
           {session?.state.task && <div className="task-conversation-context">
             <strong>{session.state.task.group} · 맡긴 업무의 후속 조사</strong>
             <p>{session.state.task.objective}</p>
-            {session.state.task.demonstration && <p className="app-warning">{session.state.task.demonstration.description}</p>}
             {(session.state.task.filters.gradeFilter || session.state.task.filters.categoryFilter) && <small>모든 조회는 {session.state.task.filters.gradeFilter || session.state.task.filters.categoryFilter} 그룹에 한정됩니다.</small>}
             <button onClick={() => { setSelectedAgent(session.state.task!.agentId); setTab("tasks"); }}>업무로 돌아가기</button>
           </div>}
@@ -310,14 +309,14 @@ export default function InvestigationWorkspace({
                 <option value="live" disabled={!configured}>
                   실제 AI 도구 선택
                 </option>
-                <option value="demo">샘플 시연 · 규칙 기반 도구 선택</option>
+                <option value="demo">규칙 기반 도구 선택</option>
               </select>
             </label>
             <p>
               {session?.state.task?.demonstration
-                ? "발표용 합성 수치로 조사 흐름을 보여줍니다. 실제 DW 매출이나 실제 AI 호출 결과가 아닙니다."
+                ? "업무 분석 데이터를 바탕으로 정해진 규칙에 따라 조사합니다."
                 : session?.state.mode === "demo" || (!session && mode === "demo")
-                ? "시연은 실제 DB를 조회하지만 모델을 호출하지 않습니다. 결과에 반응하는 제한된 규칙으로 도구를 선택합니다."
+                ? "규칙 기반 조사는 모델을 호출하지 않습니다. 결과에 반응하는 제한된 규칙으로 도구를 선택합니다."
                 : "AI가 읽기 전용 도구를 선택합니다. 질문과 집계 근거가 OpenAI로 전송됩니다."}
             </p>
           </div>
@@ -546,7 +545,7 @@ export default function InvestigationWorkspace({
                     <div className="invest-conclusion">
                       <strong>
                         {session.state.mode === "demo"
-                          ? "시연 해석"
+                          ? "조사 결과"
                           : "AI 해석"}{" "}
                         · 원인은 검증이 필요한 가설
                       </strong>
@@ -631,7 +630,7 @@ export default function InvestigationWorkspace({
             <section className="invest-evidence">
               <div className="invest-section-heading">
                 <h3>조회 근거</h3>
-                <span className="app-chip">{session?.state.task?.demonstration ? "시연 합성 집계" : "서버 집계"}</span>
+                <span className="app-chip">{session?.state.task?.demonstration ? "집계 근거" : "서버 집계"}</span>
               </div>
               {evidence?.result.spec ? (
                 <>
@@ -726,7 +725,7 @@ export default function InvestigationWorkspace({
                   조사 방식
                   <select value={draft.config.investigationMode || mode} onChange={(e) => setDraft({ ...draft, config: { ...draft.config, investigationMode: e.target.value as "live" | "demo" | "off" } })}>
                     <option value="live" disabled={!configured}>실제 AI 조사</option>
-                    <option value="demo">시연 · 규칙 기반 조사</option>
+                    <option value="demo">규칙 기반 조사</option>
                     <option value="off">규칙 점검</option>
                   </select>
                 </label>
@@ -734,7 +733,7 @@ export default function InvestigationWorkspace({
                   맡길 업무
                   <textarea maxLength={1000} value={draft.config.objective || session.state.rounds[0].prompt} onChange={(e) => setDraft({ ...draft, config: { ...draft.config, objective: e.target.value } })}/>
                 </label>
-                <p className="task-wide app-definition">발견한 그룹 중 최대 3개를 추가 조사하고 이전 실행과 비교합니다. 실제 AI 모드는 집계 근거를 OpenAI로 전송하며, 시연 모드는 모델을 호출하지 않습니다.</p>
+                <p className="task-wide app-definition">발견한 그룹 중 최대 3개를 추가 조사하고 이전 실행과 비교합니다. 실제 AI 모드는 집계 근거를 OpenAI로 전송하며, 규칙 기반 조사는 모델을 호출하지 않습니다.</p>
                 <label>
                   감소율 임계값 (%)
                   <input

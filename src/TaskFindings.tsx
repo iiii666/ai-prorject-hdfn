@@ -2,7 +2,7 @@ import { ArrowUpRight, Search, CheckCircle2, CircleAlert } from "lucide-react";
 import type { Finding, Meta } from "./analysis-types";
 import { timestamp } from "./components";
 export const findingStates = { new: "새로 발견", ongoing: "지속 중", recovered: "회복", deferred: "판단 보류" };
-export const investigationModes = { live: "실제 AI 조사", demo: "시연 · 규칙 기반 조사", off: "규칙 점검" };
+export const investigationModes = { live: "실제 AI 조사", demo: "규칙 기반 조사", off: "규칙 점검" };
 const resultStates: Record<string, string> = {
   completed: "조사 완료", running: "조사 중", error: "조사 실패", unavailable: "AI 설정 필요",
   paused: "이어서 조사 필요", clarification: "추가 확인 필요", limited: "조사 한도", off: "규칙 점검",

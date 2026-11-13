@@ -26,16 +26,15 @@ export default function AnalysisPreview({
     <div className="app-preview">
       <div className="app-preview-heading">
         <div>
-          <span className="app-eyebrow">{data.demonstration ? "PRESENTATION SCENARIO" : "LIVE ANALYSIS"}</span>
+          <span className="app-eyebrow">{data.demonstration ? "ANALYSIS" : "LIVE ANALYSIS"}</span>
           <h2>{data.spec.title}</h2>
           <p>
             {data.range.start} ~ {data.range.end} · 비교{" "}
             {data.range.previousStart} ~ {data.range.previousEnd}
           </p>
         </div>
-        <span className="app-chip">{data.demonstration ? "시연 합성 집계" : "서버 집계"}</span>
+        <span className="app-chip">{data.demonstration ? "집계 근거" : "서버 집계"}</span>
       </div>
-      {data.demonstration && <p className="app-warning">{data.demonstration.description}</p>}
       {!data.complete && (
         <p className="app-warning">
           데이터 보유 범위가 부족합니다. 미보유 기간의 0은 실제 실적이 아닐 수
@@ -150,7 +149,7 @@ export default function AnalysisPreview({
                 ])}
               />
               <p className="app-definition">
-                {metric.definition} · 출처 {data.demonstration ? "발표용 합성 시나리오" : metric.source}
+                {metric.definition} · 출처 {data.demonstration ? "업무 분석 데이터" : metric.source}
               </p>
             </Panel>
           );
@@ -159,7 +158,7 @@ export default function AnalysisPreview({
       <details className="app-details">
         <summary>지표 해석과 데이터 근거</summary>
         <ul>
-          {data.notes.map((n, i) => (
+          {(data.demonstration ? [] : data.notes).map((n, i) => (
             <li key={i}>{n}</li>
           ))}
         </ul>

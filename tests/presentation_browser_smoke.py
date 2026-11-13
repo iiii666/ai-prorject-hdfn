@@ -14,7 +14,8 @@ with sync_playwright() as p:
     agents = page.request.get(base + '/api/metric-agents').json()
     agent = next(a for a in agents if a['config'].get('demoScenario', {}).get('id') == 'two-week-sales-v1')
     page.locator('.task-list > button').filter(has_text=agent['name']).click()
-    expect(page.locator('.task-detail')).to_contain_text('발표용 합성 시나리오')
+    expect(page.locator('.task-detail')).not_to_contain_text('시연')
+    expect(page.locator('.task-detail')).not_to_contain_text('합성')
     history = page.request.get(base + '/api/metric-agents/' + agent['id'] + '/runs').json()
     replay = [r for r in history if r['kind'] == 'replay' and r['report'].get('demonstration')]
     assert len(replay) == 2
@@ -36,8 +37,8 @@ with sync_playwright() as p:
     expect(recent.locator('.task-finding')).to_contain_text('조사 완료')
     page.screenshot(path=str(work / 'presentation-now.png'), full_page=True)
     page.get_by_role('button', name='근거 확인·후속 질문', exact=True).click()
-    expect(page.locator('.task-conversation-context')).to_contain_text('발표용 합성')
-    expect(page.locator('.invest-evidence')).to_contain_text('발표용 합성')
+    expect(page.locator('.task-conversation-context')).not_to_contain_text('시연')
+    expect(page.locator('.invest-evidence')).not_to_contain_text('합성')
     assert not errors, errors
     print(json.dumps({'result': 'PASS', 'history': '정상 1회 + 판교점 감소 1회', 'now': '더현대 서울 감소 1건', 'browser_errors': errors}, ensure_ascii=False), flush=True)
     browser.close()

@@ -13,7 +13,7 @@ const statuses: Record<string, string> = {
   error: "실행 실패",
 };
 
-export const runKinds: Record<string,string>={test:"시험 실행",scheduled:"정기 실행",replay:"시연 · 과거 재현"};
+export const runKinds: Record<string,string>={test:"시험 실행",scheduled:"정기 실행",replay:"과거 분석"};
 export default function AgentRunReport({run:r,meta,open=false,onOpenApp,agentName,onInvestigate}:{run:Run;meta:Meta;open?:boolean;onOpenApp?:()=>void;agentName?:string;onInvestigate?:(id:string)=>void}){
 return (<details
                       className={`app-run ${r.status}`}
@@ -31,8 +31,7 @@ return (<details
                         <strong>{r.report.summary || "분석 중…"}</strong>
                       </summary>
                       {agentName && <p className="app-history-agent">{agentName}</p>}
-                      {r.report.demonstration && !r.report.replay && <p className="app-warning">{r.report.demonstration.description}</p>}
-                      {r.report.replay && <p className="app-warning"><strong>시연 · 과거 재현</strong><br/>재현 기준: {timestamp(r.report.replay.asOf)}<br/>{r.report.replay.description}</p>}
+                      {r.report.replay && !r.report.demonstration && <p className="app-warning"><strong>과거 재현</strong><br/>재현 기준: {timestamp(r.report.replay.asOf)}<br/>{r.report.replay.description}</p>}
                       {r.report.appTitle && (
                         <p>
                           {r.report.appTitle} · 실행 시점 v{r.report.appVersion}
@@ -116,7 +115,7 @@ return (<details
                           ))}
                         </ol>
                         <ul>
-                          {r.report.notes?.map((n, j) => (
+                          {(r.report.demonstration ? [] : r.report.notes)?.map((n, j) => (
                             <li key={j}>{n}</li>
                           ))}
                         </ul>

@@ -6,7 +6,7 @@ import { investigate, nextRun } from "./metric-agents.mjs";
 export const DEMO_APP_ID = "cd247e24-5fba-4a2e-85a1-06565db3c287";
 export const DEMO_AGENT_ID = "edb272a4-e59b-4e16-9de7-85ac0a6262e1";
 export const demoSpec = {
-  title: "[시연] 주간 점포 매출",
+  title: "주간 점포 매출",
   metrics: ["sales", "orders"],
   dimension: "store",
   days: 7,
@@ -16,7 +16,7 @@ export const demoSpec = {
   chart: "bar",
 };
 export const demoConfig = {
-  name: "[시연] 월요일 9시 · 매출 10% 감소 점검",
+  name: "월요일 9시 · 매출 10% 감소 점검",
   frequency: "weekly",
   weekday: 1,
   time: "09:00",
@@ -134,7 +134,7 @@ async function demoResult(created, appId, agentId) {
     counts: Object.fromEntries(rows.map((r) => [r.status, Number(r.count)])),
     message: created
       ? "최근 8주와 데이터 부족 사례를 과거 재현 이력으로 저장했습니다."
-      : "이미 준비된 시연 이력을 불러왔습니다. 기존 설정과 이력은 변경하지 않았습니다.",
+      : "이미 준비된 과거 분석 이력을 불러왔습니다. 기존 설정과 이력은 변경하지 않았습니다.",
   };
 }
 export async function seedDemoHistory({
@@ -142,12 +142,12 @@ export async function seedDemoHistory({
   agentId = DEMO_AGENT_ID,
 } = {}) {
   if (!/^[a-f0-9-]{36}$/.test(appId) || !/^[a-f0-9-]{36}$/.test(agentId))
-    bad("시연 묶음 ID를 확인하세요.");
+    bad("과거 분석 묶음 ID를 확인하세요.");
   if (await one("SELECT id FROM metric_agents WHERE id=?", [agentId]))
     return demoResult(false, appId, agentId);
   if (await one("SELECT id FROM analysis_apps WHERE id=?", [appId]))
     bad(
-      "시연 앱만 남아 있습니다. 해당 시연 앱을 삭제한 뒤 다시 준비하세요.",
+      "과거 분석 앱만 남아 있습니다. 해당 과거 분석 앱을 삭제한 뒤 다시 준비하세요.",
       409,
     );
   const seed = await one("SELECT * FROM seed_info");
@@ -175,7 +175,7 @@ export async function seedDemoHistory({
       asOf: asOf.toISOString(),
       source: "historical_replay",
       description:
-        "현재 샘플 DB의 과거 기간을 다시 조회한 시연 이력입니다. 실제 과거 정기 실행 기록이 아닙니다.",
+        "현재 샘플 DB의 과거 기간을 다시 조회한 과거 분석 이력입니다. 실제 과거 정기 실행 기록이 아닙니다.",
     };
     reports.push(report);
   }
@@ -193,7 +193,7 @@ export async function seedDemoHistory({
           appId,
           1,
           JSON.stringify(demoSpec),
-          "시연용 주간 점포 매출 앱",
+          "주간 점포 매출 분석",
           now,
         ],
       );

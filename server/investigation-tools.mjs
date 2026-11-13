@@ -77,7 +77,7 @@ export async function executeTool(name, scope, dimension, filters = {}) {
           : ["sales", "orders", "averageOrder", "activeCustomers"];
   if (filters.demonstration) {
     const { scenarioData } = await import("./presentation-scenario.mjs");
-    return scenarioData({ ...scope, title: "[시연] " + DIMENSIONS[d] + " 매출 변화",
+    return scenarioData({ ...scope, title: DIMENSIONS[d] + " 매출 변화",
       metrics, dimension: d, chart: d === "day" ? "line" : "bar" }, filters.demonstration);
   }
   const result = await appData(
