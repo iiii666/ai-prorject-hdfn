@@ -1,3 +1,4 @@
+import {developmentBoard} from "./development-workflow.mjs";
 import { initializeInvestigations } from "./investigation-store.mjs";
 import { investigationApi } from "./investigation-api.mjs";
 import { initializeApps } from "./app-store.mjs";
@@ -42,6 +43,9 @@ export const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     const p = url.pathname;
+    if(p === '/api/development-workflow' && req.method === 'GET') {
+      try{return json(res,await developmentBoard());}catch(e){return json(res,{error:e.message},502);}
+    }
     if (
       p.startsWith("/api/my-apps") ||
       p.startsWith("/api/metric-agents") ||

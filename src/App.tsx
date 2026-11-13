@@ -1,7 +1,9 @@
+import DevelopmentWorkflow from "./DevelopmentWorkflow";
 import InvestigationWorkspace from "./InvestigationWorkspace";
 import CustomAnalysis from "./CustomAnalysis";
 import { useEffect, useRef, useState } from "react";
 import {
+  GitBranch,
   LayoutDashboard,
   Users,
   ChartNoAxesCombined,
@@ -39,6 +41,7 @@ const icons = {
   settings: SettingsIcon,
   custom: Sparkles,
   investigator: Sparkles,
+  workflow: GitBranch,
 };
 const getPage = (): Page =>
   location.hash.slice(1) === "myapps"
@@ -59,6 +62,8 @@ const descriptions: Record<Page, string> = {
   custom: "DW 데이터에 질문하고 OpenAI 분석과 매출 시나리오를 확인합니다.",
   investigator:
     "조회 근거에 따라 다음 도구를 선택하고, 대화로 조사를 이어갑니다.",
+  workflow:
+    "Issue부터 설계·AI 구현·테스트·PR·리뷰까지 실제 GitHub 기록으로 확인합니다.",
   settings: "DB에 저장되는 워크스페이스 설정과 데이터 정보를 관리합니다.",
 };
 function Dialog({
@@ -136,6 +141,7 @@ export default function App() {
     "settings",
     "custom",
     "investigator",
+    "workflow",
   ].includes(page);
   useEffect(() => {
     const controller = new AbortController();
@@ -574,6 +580,7 @@ export default function App() {
           {page === "investigator" && (
             <InvestigationWorkspace bootstrap={bootstrap} />
           )}
+          {page === "workflow" && <DevelopmentWorkflow />}
           {page === "settings" && (
             <SettingsPage
               bootstrap={bootstrap}
@@ -589,8 +596,9 @@ export default function App() {
               SAMPLE DATABASE
             </span>
             <p>
-              생성 샘플 데이터 · 모든 수치는 PostgreSQL 조회 결과 · 인사이트는 집계
-              기반 규칙 요약
+              {page === "workflow"
+                ? "작업 상태는 GitHub 조회 결과 · 시연 모드는 별도 표시"
+                : "생성 샘플 데이터 · 모든 수치는 PostgreSQL 조회 결과 · 인사이트는 집계 기반 규칙 요약"}
             </p>
             {analyticPage && (
               <button className="text-button" onClick={reset}>

@@ -11,7 +11,9 @@
     "db:seed": "node server/seed.mjs",
     "db:demo": "node scripts/seed-agent-demo.mjs",
     "test": "node scripts/test.mjs",
-    "test:pg": "node --test tests/postgres.integration.mjs tests/workspace.test.mjs tests/investigation.test.mjs"
+    "test:pg": "node --test tests/postgres.integration.mjs tests/workspace.test.mjs tests/investigation.test.mjs",
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:workflow": "node --test tests/workflow.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

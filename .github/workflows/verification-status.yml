@@ -1,0 +1,26 @@
+name: Update AI PR verification after review edits
+on:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+  checks: write
+jobs:
+  status:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # Only trusted default-branch code, never artifacts or code from the PR.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/automation/github.mjs ciSync
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

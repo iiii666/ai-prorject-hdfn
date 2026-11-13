@@ -168,3 +168,17 @@ src/                      # React 화면
 ```
 
 주요 API: `/api/health`, `/api/bootstrap`, `/api/analytics`, `/api/orders`, `/api/catalog`, `/api/export`, `PATCH /api/settings`, `/api/custom/status`, `POST /api/custom/analyze`.
+
+## 3주차 · AI 코딩 프로젝트 관리
+
+왼쪽 **개발 워크플로우** 메뉴에서 GitHub Issue → 설계 → AI 구현 → 독립 테스트 → PR → 사람 리뷰 상태를 확인합니다. 실제 GitHub 조회와 고정 시연은 별도 표시합니다.
+
+자동 실행은 `ai-ready` Issue를 GitHub Actions + 공식 Codex Action이 처리합니다. 설계/구현/검증/게시를 분리하고, 성공 결과는 사람 리뷰 대기 PR, 테스트 실패는 Draft로 남깁니다. 자동 main 병합은 없습니다.
+
+**설치 전제:** 이 변경을 main에 병합한 뒤 Actions Secret `OPENAI_API_KEY`, PR 생성 허용, 라벨 초기화와 main 보호 규칙을 설정해야 합니다. 코드 추가만으로 이미 모델이 성공 실행됐다고 표시하지 않습니다.
+
+- [설치 및 운영 안내](docs/workflow/setup.md)
+- [발표 시연 순서](docs/workflow/presentation.md)
+- [설계 기준선](docs/spec.md) / [구조](docs/architecture.md) / [테스트 계약](docs/testing.md)
+
+`npm run test:workflow`로 정책/보고서/보드를, `npm run test:e2e`로 브라우저 흐름을 검증합니다. E2E에는 Python Playwright와 Chromium이 필요하며 `DW_PYTHON`, `CHROME_BINARY`로 실행 경로를 지정할 수 있습니다.

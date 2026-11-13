@@ -3,6 +3,7 @@ const p = spawn(
   process.execPath,
   [
     "--test",
+    "tests/workflow.test.mjs",
     "tests/custom.test.mjs",
     "tests/database.test.mjs",
     "tests/evidence.test.mjs",
