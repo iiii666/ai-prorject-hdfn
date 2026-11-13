@@ -80,6 +80,7 @@ export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, 
       {selected ? <main className="task-detail" aria-label="업무 상세">
         <Panel title={selected.name} aside={<span className="app-chip">{selected.enabled ? "진행 중" : "일시 중지"}</span>}>
           <p className="task-objective">{selected.config.objective || objective}</p>
+          {selected.config.demoScenario && <p className="app-warning"><strong>발표용 합성 시나리오</strong><br/>2주 이력: 정상 → 판교점 감소. 지금 확인: 더현대 서울 감소 1건. 실제 DW 실적과 분리된 고정 시연입니다.</p>}
           <p className="muted">{selected.config.frequency === "daily" ? "매일" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][selected.config.weekday]}요일`} {selected.config.time} · 한국 시간 · {investigationModes[selected.config.investigationMode || "off"]}</p>
           <div className="invest-actions">
             <button disabled={busy || latest?.status === "running"} className="primary" onClick={() => void act(async () => {
@@ -112,7 +113,7 @@ export default function AssignedTasks({ meta, selectedId, onInvestigate, onNew, 
         <details className="task-section"><summary><Settings2 size={16}/>업무 설정</summary>
           <fieldset disabled={busy} className="invest-form">
             <label>업무 이름<input maxLength={80} value={selected.config.name} onChange={(e) => edit({ name: e.target.value })}/></label>
-            <label>조사 방식<select aria-label="조사 방식" value={selected.config.investigationMode || "off"} onChange={(e) => edit({ investigationMode: e.target.value as Config["investigationMode"] })}>
+            <label>조사 방식<select disabled={!!selected.config.demoScenario} aria-label="조사 방식" value={selected.config.investigationMode || "off"} onChange={(e) => edit({ investigationMode: e.target.value as Config["investigationMode"] })}>
               <option value="live" disabled={!meta.aiConfigured}>실제 AI 조사{!meta.aiConfigured ? " · API 키 필요" : ""}</option><option value="demo">시연 · 규칙 기반 조사</option><option value="off">규칙 점검</option>
             </select></label>
             <label className="task-wide">맡길 업무<textarea maxLength={1000} minLength={3} value={selected.config.objective || objective} onChange={(e) => edit({ objective: e.target.value })}/></label>

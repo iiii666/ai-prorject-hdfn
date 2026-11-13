@@ -31,6 +31,7 @@ export type Metric = {
   difference: number | null;
 };
 export type Data = {
+  demonstration?: Demonstration;
   spec: Spec;
   range: {
     start: string;
@@ -43,6 +44,7 @@ export type Data = {
   notes: string[];
   queriedAt: string;
 };
+export type Demonstration = { id: string; anchorEnd: string; phase: number; description: string };
 export type Config = {
   name: string;
   frequency: string;
@@ -54,6 +56,7 @@ export type Config = {
   period: string;
   investigationMode?: "off" | "demo" | "live";
   objective?: string;
+  demoScenario?: { id: string; anchorEnd: string };
 };
 export type Agent = {
   id: string;
@@ -88,6 +91,7 @@ export type Run = {
   created_at: string;
   finished_at: string;
   report: {
+    demonstration?: Demonstration;
     replay?: { asOf: string; source: string; description: string };
     summary?: string;
     appTitle?: string;

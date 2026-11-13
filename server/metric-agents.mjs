@@ -3,6 +3,7 @@ import { all, one, transaction, dateAdd, fixtureMode } from "./db.mjs";
 import { bad, METRICS } from "./app-plans.mjs";
 import { getApp, stamp } from "./app-store.mjs";
 import { appData } from "./app-data.mjs";
+import { validateDemoScenario, scenarioReport } from "./presentation-scenario.mjs";
 const decode = (r) => ({
   ...r,
   config: JSON.parse(r.config),
@@ -62,6 +63,7 @@ export function validateAgent(raw, spec) {
   const objective = raw.objective ?? "변화가 큰 그룹을 조사하고 확인된 사실과 추가 확인할 가설을 구분해줘.";
   if (typeof objective !== "string" || objective.trim().length < 3 || objective.length > 1000)
     bad("맡길 업무는 3~1,000자로 입력하세요.");
+  const demoScenario = validateDemoScenario(raw.demoScenario, spec, investigationMode);
   return {
     name: raw.name.trim(),
     frequency: raw.frequency,
@@ -73,6 +75,7 @@ export function validateAgent(raw, spec) {
     period: raw.period,
     investigationMode,
     objective: objective.trim(),
+    ...(demoScenario ? { demoScenario } : {}),
   };
 }
 export function nextRun(config, after = new Date()) {
@@ -261,7 +264,7 @@ export async function investigate(app, config, now = new Date()) {
 }
 export async function runAgent(
   id,
-  { kind = "test", now = new Date(), slot } = {},
+  { kind = "test", now = new Date(), slot, demoPhase = 2 } = {},
 ) {
   const agent = await getAgent(id),
     app = await getApp(agent.app_id);
@@ -281,7 +284,7 @@ export async function runAgent(
   )
     bad("이미 실행 중입니다.", 409);
   const runId = randomUUID(),
-    key = kind === "scheduled" ? slot : randomUUID();
+    key = kind === "scheduled" || (kind === "replay" && slot) ? slot : randomUUID();
   try {
     await transaction(async (tx) => {
       const current = await tx.one(
@@ -315,13 +318,16 @@ export async function runAgent(
   } catch (e) {
     if (
       e.code === "23505" ||
+      (fixtureMode && [1555, 2067].includes(e.errcode)) ||
       String(e.code).startsWith("SQLITE_CONSTRAINT")
     )
       return null;
     throw e;
   }
   try {
-    const report = await investigate(app, agent.config, now);
+    const report = agent.config.demoScenario
+      ? await scenarioReport(app, agent.config, demoPhase)
+      : await investigate(app, agent.config, now);
     const { enrichTaskReport } = await import("./task-investigations.mjs");
     await enrichTaskReport({ agent, app, report, runId, kind, now });
     await transaction((tx) =>

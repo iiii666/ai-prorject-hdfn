@@ -8,6 +8,7 @@ export function taskContextKey(spec, config) {
     spec.dimension, spec.store, spec.channel, spec.days, spec.comparison,
     config.metric, config.condition, config.threshold, config.period,
     config.investigationMode || "off", config.objective || "",
+    config.demoScenario || null,
   ]);
 }
 const unresolved = (f) => ["new", "ongoing", "deferred"].includes(f.state);
@@ -70,6 +71,7 @@ export async function runTaskInvestigation(input, dependencies = {}) {
       prompt: finding.group + " 그룹의 매출·지표 변화를 조사하고, 확인 사실과 추가 확인할 가설을 정리해줘.",
     }, { task: {
       agentId: agent.id, runId, group: finding.group, filters,
+      ...(report.demonstration ? { demonstration: report.demonstration } : {}),
       objective: agent.config.objective,
       trigger: { metric: agent.config.metric, condition: agent.config.condition,
         threshold: agent.config.threshold, observation: finding.metric },
@@ -130,7 +132,8 @@ export async function enrichTaskReport({ agent, app, report, runId, kind, now },
   );
   const latest = history[0] ? { ...history[0], report: JSON.parse(history[0].report) } : null;
   const previous = latest?.report.contextKey === report.contextKey ? latest : null;
-  report.findings = trackFindings(report, previous, now.toISOString());
+  const observedAt = report.demonstration && report.replay ? report.replay.asOf : now.toISOString();
+  report.findings = trackFindings(report, previous, observedAt);
   const priority = { new: 0, ongoing: 1, recovered: 2, deferred: 3 };
   report.findings.sort((a, b) => priority[a.state] - priority[b.state] ||
     Math.abs(b.metric?.difference || 0) - Math.abs(a.metric?.difference || 0));

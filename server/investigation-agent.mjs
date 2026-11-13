@@ -344,7 +344,8 @@ export async function investigationStep(
           502,
         );
       const result = await runTool(decision.tool, scope, decision.dimension,
-        session.state.task?.filters || {});
+        { ...session.state.task?.filters,
+          ...(session.state.task?.demonstration ? { demonstration: session.state.task.demonstration } : {}) });
       round.steps.push({
         id: randomUUID(),
         tool: decision.tool,
@@ -382,6 +383,8 @@ export async function investigationStep(
         ],
       };
       if (decision.kind === "proposal") {
+        if (session.state.task?.demonstration)
+          bad("발표용 합성 결과는 시연 업무와 대화에서 확인하세요. 일반 분석으로 저장하지 않습니다.");
         if (session.state.task?.filters?.gradeFilter || session.state.task?.filters?.categoryFilter)
           bad("이 그룹에 한정된 조사는 대화에 보관됩니다. 분석 저장은 새 조사에서 범위를 지정하세요.");
         const d = decision.draft;

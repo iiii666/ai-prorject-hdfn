@@ -27,7 +27,7 @@ export default function TaskFindings({ findings, meta, metric, onInvestigate }: 
     {f.investigation && <div className="task-investigation">
       <small><Search size={13}/> {investigationModes[f.investigation.mode]} · {resultStates[f.investigation.status] || f.investigation.status}</small>
       {f.investigation.summary && <p>{f.investigation.summary}</p>}
-      {f.investigation.queryCount !== undefined && <small>실제 조회 {f.investigation.queryCount}회 · 해석과 가설은 조회 근거로 확인하세요.</small>}
+      {f.investigation.queryCount !== undefined && <small>조회 도구 실행 {f.investigation.queryCount}회 · 해석과 가설은 조회 근거로 확인하세요.</small>}
       {f.investigation.sessionId && onInvestigate && <button onClick={() => onInvestigate(f.investigation!.sessionId!)}>
         근거 확인·후속 질문 <ArrowUpRight size={14}/>
       </button>}

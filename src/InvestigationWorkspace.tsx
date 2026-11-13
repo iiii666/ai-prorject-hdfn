@@ -294,6 +294,7 @@ export default function InvestigationWorkspace({
           {session?.state.task && <div className="task-conversation-context">
             <strong>{session.state.task.group} · 맡긴 업무의 후속 조사</strong>
             <p>{session.state.task.objective}</p>
+            {session.state.task.demonstration && <p className="app-warning">{session.state.task.demonstration.description}</p>}
             {(session.state.task.filters.gradeFilter || session.state.task.filters.categoryFilter) && <small>모든 조회는 {session.state.task.filters.gradeFilter || session.state.task.filters.categoryFilter} 그룹에 한정됩니다.</small>}
             <button onClick={() => { setSelectedAgent(session.state.task!.agentId); setTab("tasks"); }}>업무로 돌아가기</button>
           </div>}
@@ -313,7 +314,9 @@ export default function InvestigationWorkspace({
               </select>
             </label>
             <p>
-              {session?.state.mode === "demo" || (!session && mode === "demo")
+              {session?.state.task?.demonstration
+                ? "발표용 합성 수치로 조사 흐름을 보여줍니다. 실제 DW 매출이나 실제 AI 호출 결과가 아닙니다."
+                : session?.state.mode === "demo" || (!session && mode === "demo")
                 ? "시연은 실제 DB를 조회하지만 모델을 호출하지 않습니다. 결과에 반응하는 제한된 규칙으로 도구를 선택합니다."
                 : "AI가 읽기 전용 도구를 선택합니다. 질문과 집계 근거가 OpenAI로 전송됩니다."}
             </p>
@@ -628,7 +631,7 @@ export default function InvestigationWorkspace({
             <section className="invest-evidence">
               <div className="invest-section-heading">
                 <h3>조회 근거</h3>
-                <span className="app-chip">서버 집계</span>
+                <span className="app-chip">{session?.state.task?.demonstration ? "시연 합성 집계" : "서버 집계"}</span>
               </div>
               {evidence?.result.spec ? (
                 <>

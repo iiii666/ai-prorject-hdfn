@@ -185,3 +185,68 @@ test("previously limited findings get a turn and rule-only tasks never claim an 
   assert.equal(r.findings.length, 5);
   assert.ok(r.findings.every((f) => f.investigation.status === "off"));
 });
+
+test("presentation scenario has two prior weeks, one historical declining store and a different current store", async () => {
+  const { scenarioReport, scenarioData, PRESENTATION_SCENARIO } = await import("../server/presentation-scenario.mjs");
+  const demoScenario = { id: PRESENTATION_SCENARIO, anchorEnd: seed.end_date };
+  const c = { ...config, condition: "drop", threshold: 10, demoScenario };
+  const before = await one("SELECT COUNT(*) count,SUM(amount) total FROM dw_fact_orders");
+  const reports = [];
+  for (const phase of [0, 1, 2]) reports.push(await scenarioReport({ title: spec.title, version: 1, spec }, c, phase));
+  assert.deepEqual(reports.map((r) => r.alertCount), [0, 1, 1]);
+  assert.equal(reports[1].rows.find((r) => r.matched).label, "판교점");
+  assert.equal(reports[2].rows.find((r) => r.matched).label, "더현대 서울");
+  assert.equal(reports[1].rows.find((r) => r.matched).metrics.sales.change, -16);
+  assert.equal(reports[2].rows.find((r) => r.matched).metrics.sales.change, -18);
+  assert.ok(reports.slice(0, 2).every((r) => r.replay.source === "synthetic_scenario"));
+  for (const phase of [0, 1, 2]) {
+    const source = { ...demoScenario, phase };
+    const total = reports[phase].rows.reduce((n, r) => n + r.metrics.sales.value, 0);
+    for (const dimension of ["channel", "category", "grade", "day"]) {
+      const d = await scenarioData({ ...spec, metrics: ["sales"], dimension }, source);
+      assert.equal(d.rows.reduce((n, r) => n + r.metrics.sales.value, 0), total);
+      assert.match(d.notes[0], /合成|합성/);
+    }
+    if (phase) for (const row of reports[phase].rows)
+      assert.equal(row.metrics.sales.previous, reports[phase - 1].rows.find((r) => r.id === row.id).metrics.sales.value);
+  }
+  assert.deepEqual(await one("SELECT COUNT(*) count,SUM(amount) total FROM dw_fact_orders"), before);
+  assert.throws(() => validateAgent({ ...c, investigationMode: "live" }, spec), /시연/);
+});
+
+test("presentation history seeds idempotently, now-check yields one different store, and follow-up evidence stays synthetic", async () => {
+  const { seedPresentationTask } = await import("../server/presentation-scenario.mjs");
+  const { agentRuns } = await import("../server/metric-agents.mjs");
+  const { workspaceApi } = await import("../server/workspace-api.mjs");
+  const app = await make();
+  const agent = await saveAgent({ appId: app.id, config, enabled: false });
+  const seeded = await seedPresentationTask(agent.id);
+  const current = (await listAgents()).find((a) => a.id === agent.id);
+  apps.push(current.app_id);
+  assert.notEqual(current.app_id, app.id);
+  assert.equal(current.enabled, false);
+  assert.equal(current.config.investigationMode, "demo");
+  assert.equal(seeded.historyCount, 2);
+  assert.equal((await seedPresentationTask(agent.id)).historyCount, 2);
+  const history = await agentRuns(agent.id);
+  assert.deepEqual(history.map((r) => r.report.alertCount).sort(), [0, 1]);
+  const historicalAlert = history.find((r) => r.report.alertCount === 1);
+  assert.equal(historicalAlert.report.findings[0].firstSeen, historicalAlert.report.replay.asOf);
+  const run = await runAgent(agent.id);
+  assert.equal(run.report.alertCount, 1);
+  assert.equal(run.report.findings.length, 1);
+  assert.equal(run.report.findings[0].group, "더현대 서울");
+  const investigation = run.report.findings[0].investigation;
+  assert.equal(investigation.status, "completed");
+  const s = await getInvestigation(investigation.sessionId);
+  assert.ok(s.state.task.demonstration);
+  const steps = s.state.rounds[0].steps;
+  assert.ok(steps.every((s) => s.result.demonstration));
+  assert.equal(steps[0].result.rows[0].metrics.sales.value, run.report.findings[0].metric.value);
+  assert.equal(steps[1].result.rows.reduce((n, r) => n + r.metrics.sales.value, 0), run.report.findings[0].metric.value);
+  const view = await workspaceApi(`/api/my-apps/${current.app_id}/data`, "GET");
+  assert.ok(view.demonstration);
+  assert.equal(view.rows.find((r) => r.id === "1").metrics.sales.value, run.report.findings[0].metric.value);
+  const oldView = await workspaceApi(`/api/my-apps/${app.id}/data`, "GET");
+  assert.equal(oldView.demonstration, undefined);
+});

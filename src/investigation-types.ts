@@ -1,4 +1,4 @@
-import type { Data, Spec, Config } from "./analysis-types";
+import type { Data, Spec, Config, Demonstration } from "./analysis-types";
 export type Scope = {
   days: number;
   end: string;
@@ -40,7 +40,7 @@ export type Session = {
   updated_at: string;
   state: {
     mode: "live" | "demo";
-    task?: { agentId: string; runId: string; group: string; objective: string;
+    task?: { agentId: string; runId: string; group: string; objective: string; demonstration?: Demonstration;
       filters: { gradeFilter?: string; categoryFilter?: string } };
     messages: { id: string; role: string; text: string; at: string }[];
     rounds: Round[];

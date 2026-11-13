@@ -31,6 +31,7 @@ return (<details
                         <strong>{r.report.summary || "분석 중…"}</strong>
                       </summary>
                       {agentName && <p className="app-history-agent">{agentName}</p>}
+                      {r.report.demonstration && !r.report.replay && <p className="app-warning">{r.report.demonstration.description}</p>}
                       {r.report.replay && <p className="app-warning"><strong>시연 · 과거 재현</strong><br/>재현 기준: {timestamp(r.report.replay.asOf)}<br/>{r.report.replay.description}</p>}
                       {r.report.appTitle && (
                         <p>

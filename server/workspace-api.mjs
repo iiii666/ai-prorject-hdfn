@@ -1,6 +1,7 @@
 import { historyList, historyDetail, seedDemoHistory } from "./agent-history.mjs";
 import { planApp, planAgent, bad, METRICS, DIMENSIONS } from "./app-plans.mjs";
 import { appData } from "./app-data.mjs";
+import { all } from "./db.mjs";
 import {
   listApps,
   getApp,
@@ -38,7 +39,14 @@ export async function workspaceApi(path, method, readBody, params) {
     const [, id, action] = match;
     if (method === "GET")
       return action === "data"
-        ? appData((await getApp(id)).spec)
+        ? await (async () => {
+            const app = await getApp(id);
+            const scenario = (await all("SELECT config FROM metric_agents WHERE app_id=?", [id]))
+              .map((a) => JSON.parse(a.config).demoScenario).find(Boolean);
+            if (!scenario) return appData(app.spec);
+            const { scenarioData } = await import("./presentation-scenario.mjs");
+            return scenarioData(app.spec, { ...scenario, phase: 2 });
+          })()
         : action === "versions"
           ? appVersions(id)
           : getApp(id);
