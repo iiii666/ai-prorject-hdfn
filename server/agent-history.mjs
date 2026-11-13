@@ -227,7 +227,7 @@ export async function seedDemoHistory({
     });
   } catch (e) {
     if (
-      e.code === "ER_DUP_ENTRY" &&
+      e.code === "23505" &&
       (await one("SELECT id FROM metric_agents WHERE id=?", [agentId]))
     )
       return demoResult(false, appId, agentId);

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { all, one, transaction, db, fixtureMode } from "./db.mjs";
+import { all, one, transaction, db, fixtureMode, ddl as createTables } from "./db.mjs";
 import { validateSpec, validateStore, bad } from "./app-plans.mjs";
 const ddl = [
   `CREATE TABLE IF NOT EXISTS analysis_apps (id VARCHAR(36) PRIMARY KEY, title VARCHAR(60) NOT NULL, spec TEXT NOT NULL, version INTEGER NOT NULL, created_at VARCHAR(32) NOT NULL, updated_at VARCHAR(32) NOT NULL)`,
@@ -8,10 +8,8 @@ const ddl = [
   `CREATE TABLE IF NOT EXISTS metric_agent_runs (id VARCHAR(36) PRIMARY KEY, agent_id VARCHAR(36) NOT NULL, slot VARCHAR(64) NOT NULL, kind VARCHAR(16) NOT NULL, status VARCHAR(20) NOT NULL, report TEXT NOT NULL, created_at VARCHAR(32) NOT NULL, finished_at VARCHAR(32), UNIQUE(agent_id,slot), FOREIGN KEY(agent_id) REFERENCES metric_agents(id) ON DELETE CASCADE)`,
 ];
 export async function initializeApps() {
-  for (const sql of ddl) {
-    if (fixtureMode) db.exec(sql);
-    else await db.query(sql + " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-  }
+  if (fixtureMode) for (const sql of ddl) db.exec(sql);
+  else await createTables(ddl);
 }
 export const stamp = () => new Date().toISOString();
 export const decodeApp = (r) => (r ? { ...r, spec: JSON.parse(r.spec) } : null);
@@ -80,7 +78,7 @@ export async function saveApp(input, id) {
         );
       });
     } catch (e) {
-      if (e.code === "ER_DUP_ENTRY")
+      if (e.code === "23505")
         bad("저장 충돌이 발생했습니다. 다시 열어주세요.", 409);
       throw e;
     }

@@ -46,7 +46,7 @@ export async function customStatus() {
     model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
     years: (
       await all(
-        "SELECT DISTINCT CAST(substr(ordered_at,1,4) AS INTEGER) year FROM dw_fact_orders ORDER BY year DESC",
+        "SELECT DISTINCT CAST(substr(ordered_at,1,4) AS INTEGER) AS year FROM dw_fact_orders ORDER BY year DESC",
       )
     ).map((r) => r.year),
     seed: await one("SELECT * FROM seed_info"),
@@ -78,7 +78,7 @@ export async function forecast({ year, store = "", channel = "", uplift = 5 }) {
   ];
   const scope = `${store ? " AND store_id=?" : ""}${channel ? " AND channel=?" : ""}`;
   const history = await all(
-    `SELECT substr(ordered_at,1,7) month,SUM(amount) sales,COUNT(*) orders FROM dw_fact_orders WHERE substr(ordered_at,1,4) IN (?,?)${scope} GROUP BY month ORDER BY month`,
+    `SELECT substr(ordered_at,1,7) AS month,SUM(amount) sales,COUNT(*) orders FROM dw_fact_orders WHERE substr(ordered_at,1,4) IN (?,?)${scope} GROUP BY month ORDER BY month`,
     [String(year - 1), String(year), ...args],
   );
   const coverageStart = status.seed.start_date,

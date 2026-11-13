@@ -296,7 +296,7 @@ export async function runAgent(
     });
   } catch (e) {
     if (
-      e.code === "ER_DUP_ENTRY" ||
+      e.code === "23505" ||
       String(e.code).startsWith("SQLITE_CONSTRAINT")
     )
       return null;

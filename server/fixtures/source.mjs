@@ -1,4 +1,4 @@
-// Sample generation/import is separate from the live MySQL data access layer.
+// Sample generation/import is separate from the live PostgreSQL data access layer.
 export async function createSource() {
   if (process.env.DB_IMPORT_SQLITE) {
     const { DatabaseSync } = await import("node:sqlite");

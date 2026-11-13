@@ -1,7 +1,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 if (process.env.DW_TEST_SQLITE === "1")
-  throw Error("MySQL integration tests require a real MySQL server");
+  throw Error("PostgreSQL integration tests require a real PostgreSQL server");
 process.env.PORT = "0";
 const { initialize, all, one, close, transaction, databaseEngine } =
   await import("../server/db.mjs");
@@ -18,15 +18,35 @@ after(async () => {
   await new Promise((resolve) => server.close(resolve));
   await close();
 });
-test("real MySQL 8.4 is used and InnoDB enforces foreign keys", async () => {
-  assert.equal(databaseEngine, "MySQL");
-  assert.match((await one("SELECT VERSION() version")).version, /^8\.4\./);
+test("real PostgreSQL is used and foreign keys and row level security are enforced", async () => {
+  assert.equal(databaseEngine, "PostgreSQL");
+  assert.match(
+    (await one("SELECT version() AS version")).version,
+    /^PostgreSQL (1[5-9]|[2-9]\d)\./,
+  );
   assert.ok(
     (
       await one(
-        "SELECT COUNT(*) n FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE()",
+        "SELECT COUNT(*) n FROM pg_constraint WHERE contype='f' AND connamespace=(SELECT oid FROM pg_namespace WHERE nspname=current_schema())",
       )
     ).n > 15,
+  );
+  // Supabase exposes the public schema over its REST API: tables must have RLS and views must run as the caller.
+  assert.equal(
+    (
+      await one(
+        "SELECT COUNT(*) n FROM pg_class c WHERE c.relnamespace=(SELECT oid FROM pg_namespace WHERE nspname=current_schema()) AND c.relkind='r' AND NOT c.relrowsecurity",
+      )
+    ).n,
+    0,
+  );
+  assert.equal(
+    (
+      await one(
+        "SELECT COUNT(*) n FROM pg_class c WHERE c.relnamespace=(SELECT oid FROM pg_namespace WHERE nspname=current_schema()) AND c.relkind='v' AND NOT COALESCE('security_invoker=true' = ANY(c.reloptions), false)",
+      )
+    ).n,
+    0,
   );
   await assert.rejects(
     transaction((tx) =>
@@ -34,10 +54,10 @@ test("real MySQL 8.4 is used and InnoDB enforces foreign keys", async () => {
         "INSERT INTO orders VALUES (987654321,-1,1,'오프라인','2026-11-10','completed',NULL)",
       ),
     ),
-    (e) => e.code === "ER_NO_REFERENCED_ROW_2",
+    (e) => e.code === "23503",
   );
 });
-test("all analytics queries execute in strict MySQL and reconcile to raw payments", async () => {
+test("all analytics queries execute in PostgreSQL and reconcile to raw payments", async () => {
   const f = await filters(new URLSearchParams()),
     d = await analytics(f);
   const raw = await one(
@@ -72,7 +92,7 @@ test("all analytics queries execute in strict MySQL and reconcile to raw payment
   assert.equal(offline.app.sessions, 0);
   assert.equal(mobile.summary.sales + offline.summary.sales, d.summary.sales);
 });
-test("catalog reads real MySQL metadata and row counts", async () => {
+test("catalog reads real PostgreSQL metadata and row counts", async () => {
   const c = await catalog();
   assert.equal(c.assets.length, 16);
   const orders = c.assets.find((a) => a.id === "orders");
@@ -83,7 +103,7 @@ test("catalog reads real MySQL metadata and row counts", async () => {
     (await one("SELECT COUNT(*) n FROM payments")).n,
   );
 });
-test("MySQL custom evidence, filters, history and forecasts reconcile", async () => {
+test("PostgreSQL custom evidence, filters, history and forecasts reconcile", async () => {
   const year = (await customStatus()).years[0];
   const e = await forecast({ year });
   for (const list of [
@@ -121,7 +141,7 @@ test("MySQL custom evidence, filters, history and forecasts reconcile", async ()
           if (calls === 1) return { allowed: true };
           assert.equal(data.evidence.breakdown.byStore.length, 3);
           return {
-            summary: "MySQL 집계 근거입니다.",
+            summary: "PostgreSQL 집계 근거입니다.",
             findings: [],
             events: [],
             cautions: [],
@@ -135,7 +155,7 @@ test("MySQL custom evidence, filters, history and forecasts reconcile", async ()
     else delete process.env.OPENAI_API_KEY;
   }
 });
-test("search pagination, empty results and HTTP settings transactions work in MySQL", async () => {
+test("search pagination, empty results and HTTP settings transactions work in PostgreSQL", async () => {
   const f = await filters(new URLSearchParams());
   const page = await orderList(f, new URLSearchParams("page=1"));
   assert.equal(page.items.length, 20);
@@ -156,14 +176,14 @@ test("search pagination, empty results and HTTP settings transactions work in My
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        workspaceName: "MySQL 설정 저장 검증",
+        workspaceName: "PostgreSQL 설정 저장 검증",
         alertsEnabled: false,
       }),
     });
     assert.equal(r.status, 200);
     assert.equal(
       (await one("SELECT value FROM settings WHERE key='workspaceName'")).value,
-      "MySQL 설정 저장 검증",
+      "PostgreSQL 설정 저장 검증",
     );
   } finally {
     await fetch(base + "/api/settings", {
@@ -174,7 +194,7 @@ test("search pagination, empty results and HTTP settings transactions work in My
   }
   assert.equal(
     (await (await fetch(base + "/api/health")).json()).database,
-    "MySQL",
+    "PostgreSQL",
   );
   const csv = await fetch(base + "/api/export");
   assert.equal(csv.status, 200);

@@ -1,14 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { all, one, db, fixtureMode, transaction } from "./db.mjs";
+import { all, one, db, fixtureMode, transaction, ddl as createTables } from "./db.mjs";
 import { bad } from "./app-plans.mjs";
 import { defaultScope, validateScope } from "./investigation-tools.mjs";
 export async function initializeInvestigations() {
   const sql =
-    "CREATE TABLE IF NOT EXISTS investigation_sessions (id VARCHAR(36) PRIMARY KEY,title VARCHAR(60) NOT NULL,state " +
-    (fixtureMode ? "TEXT" : "LONGTEXT") +
-    " NOT NULL,version INTEGER NOT NULL,status VARCHAR(24) NOT NULL,created_at VARCHAR(32) NOT NULL,updated_at VARCHAR(32) NOT NULL)";
+    "CREATE TABLE IF NOT EXISTS investigation_sessions (id VARCHAR(36) PRIMARY KEY,title VARCHAR(60) NOT NULL,state TEXT NOT NULL,version INTEGER NOT NULL,status VARCHAR(24) NOT NULL,created_at VARCHAR(32) NOT NULL,updated_at VARCHAR(32) NOT NULL)";
   if (fixtureMode) db.exec(sql);
-  else await db.query(sql + " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  else await createTables([sql]);
 }
 export function promptText(value) {
   if (

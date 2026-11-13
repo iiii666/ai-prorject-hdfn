@@ -57,11 +57,11 @@ export async function buildEvidence({
     ),
   );
   const monthlyByStore = await all(
-    `SELECT substr(o.ordered_at,1,7) month,s.id storeId,s.name storeName,SUM(o.amount) sales,COUNT(*) orders FROM dw_fact_orders o JOIN stores s ON s.id=o.store_id WHERE o.ordered_at BETWEEN ? AND ?${scope("o.")} GROUP BY month,s.id ORDER BY month,s.id`,
+    `SELECT substr(o.ordered_at,1,7) AS month,s.id storeId,s.name storeName,SUM(o.amount) sales,COUNT(*) orders FROM dw_fact_orders o JOIN stores s ON s.id=o.store_id WHERE o.ordered_at BETWEEN ? AND ?${scope("o.")} GROUP BY month,s.id ORDER BY month,s.id`,
     args,
   );
   const monthlyByCategory = await all(
-    `SELECT substr(o.ordered_at,1,7) month,p.category,SUM(i.quantity*i.unit_price) sales FROM order_items i JOIN dw_fact_orders o ON o.id=i.order_id JOIN products p ON p.id=i.product_id WHERE o.ordered_at BETWEEN ? AND ?${scope("o.")} GROUP BY month,p.category ORDER BY month,p.category`,
+    `SELECT substr(o.ordered_at,1,7) AS month,p.category,SUM(i.quantity*i.unit_price) sales FROM order_items i JOIN dw_fact_orders o ON o.id=i.order_id JOIN products p ON p.id=i.product_id WHERE o.ordered_at BETWEEN ? AND ?${scope("o.")} GROUP BY month,p.category ORDER BY month,p.category`,
     args,
   );
   const byGrade = enriched(

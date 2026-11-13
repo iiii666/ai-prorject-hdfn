@@ -8,6 +8,26 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dw_app
+          POSTGRES_PASSWORD: dw_local_password
+          POSTGRES_DB: hyundai_dw
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dw_app -d hyundai_dw"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: dw_app
+      DB_PASSWORD: dw_local_password
+      DB_DATABASE: hyundai_dw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,8 +37,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: npm run db:up
-      - run: npm run test:mysql
+      - run: npm run test:pg
       - name: Install browser test dependencies
         run: |
           python3 -m venv /tmp/dw-browser-venv
@@ -40,5 +59,3 @@ jobs:
           name: history-browser-results
           path: work/
           if-no-files-found: ignore
-      - if: always()
-        run: docker compose down

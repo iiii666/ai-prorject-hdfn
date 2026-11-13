@@ -260,11 +260,11 @@ try {
   await initializeInvestigations();
 } catch (e) {
   console.error(
-    "MySQL 연결/초기화 실패. Docker Desktop 실행 후 npm run db:up 및 DB 접속 설정을 확인하세요. 코드:",
+    "PostgreSQL(Supabase) 연결/초기화 실패. .env의 DATABASE_URL(또는 DB_*), 비밀번호, 네트워크/SSL 설정을 확인하세요. 코드:",
     e.code || e.name,
   );
   await close();
-  throw new Error("MySQL 초기화에 실패했습니다.");
+  throw new Error("PostgreSQL 초기화에 실패했습니다.");
 }
 const stopScheduler = await startAgentScheduler();
 const port = Number(process.env.PORT || 3001);

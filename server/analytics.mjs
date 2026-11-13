@@ -130,7 +130,7 @@ async function campaignMetrics(f) {
       )
     ).map(async (c) => {
       const t = await one(
-        `SELECT COUNT(*) target,COALESCE(SUM(EXISTS(SELECT 1 FROM dw_fact_orders o WHERE o.campaign_target_id=t.id AND o.ordered_at BETWEEN ? AND ?)),0) converted FROM campaign_targets t WHERE t.campaign_id=? AND t.targeted_at BETWEEN ? AND ?${q.sql}`,
+        `SELECT COUNT(*) target,COALESCE(SUM(CASE WHEN EXISTS(SELECT 1 FROM dw_fact_orders o WHERE o.campaign_target_id=t.id AND o.ordered_at BETWEEN ? AND ?) THEN 1 ELSE 0 END),0) converted FROM campaign_targets t WHERE t.campaign_id=? AND t.targeted_at BETWEEN ? AND ?${q.sql}`,
         [f.start, f.end, c.id, f.start, f.end, ...q.args],
       );
       const p = await one(
