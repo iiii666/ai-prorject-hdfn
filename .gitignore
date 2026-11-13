@@ -15,3 +15,5 @@ data/
 work/
 
 __pycache__/
+.agent-context/
+.agent-patches/

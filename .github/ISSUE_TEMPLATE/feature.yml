@@ -1,0 +1,32 @@
+name: Feature / 기능
+description: 설계와 수용 조건이 있는 기능 작업
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: 해결할 문제와 사용자 동작
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: 검증 가능한 조건을 체크리스트로 작성
+      placeholder: "- [ ] 선택 조건을 반영한다.\n- [ ] 빈 결과를 처리한다."
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Design
+      description: 관련 설계 문서, 화면/API와 변경 범위
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests
+      description: Unit / 통합 / E2E에서 확인할 내용
+    validations:
+      required: true
