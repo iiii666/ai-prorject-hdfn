@@ -15,7 +15,9 @@ export async function approveInvestigation(id, input) {
     validateSpec({ ...proposal.spec, title: input.title }),
   );
   const config = validateAgent(
-    { ...proposal.config, ...input.config, name: spec.title + " 정기 점검" },
+    { ...proposal.config, investigationMode: session.state.mode,
+      objective: session.state.rounds[0].prompt,
+      ...input.config, name: spec.title + " 정기 점검" },
     spec,
   );
   if (typeof input.enabled !== "boolean") bad("감시 활성화 여부를 확인하세요.");

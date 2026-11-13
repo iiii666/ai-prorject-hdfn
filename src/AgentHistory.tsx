@@ -10,7 +10,7 @@ type Result={items:HistoryRun[];total:number;page:number;pageSize:number;totalPa
 type Agent={id:string;name:string};
 const statuses:Record<string,string>={alert:"조건 발견",normal:"정상",no_data:"판단 보류",error:"실행 실패",running:"실행 중"};
 const emptyFilters={agent:"",status:"",kind:"",from:"",to:""};
-export default function AgentHistory({meta,agents,onRefresh,onOpenApp,onOpenAgent}:{meta:Meta;agents:Agent[];onRefresh:()=>Promise<void>;onOpenApp:(id:string)=>void;onOpenAgent:(id:string)=>void}){
+export default function AgentHistory({meta,agents,onRefresh,onOpenApp,onOpenAgent,onInvestigate}:{meta:Meta;agents:Agent[];onRefresh:()=>Promise<void>;onOpenApp:(id:string)=>void;onOpenAgent:(id:string)=>void;onInvestigate?:(id:string)=>void}){
   const [filters,setFilters]=useState(emptyFilters),[page,setPage]=useState(1),[revision,setRevision]=useState(0);
   const [result,setResult]=useState<Result|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState(""),[seeding,setSeeding]=useState(false);
   const query=new URLSearchParams({...filters,page:String(page),pageSize:"5"}).toString();
@@ -29,7 +29,7 @@ export default function AgentHistory({meta,agents,onRefresh,onOpenApp,onOpenAgen
     }catch(e){setError((e as Error).message);}finally{setSeeding(false);}
   }
   return <div className="agent-history">
-    <Panel title="감시 실행 이력" aside={<History size={19}/>}>
+    <Panel title="전체 활동 기록" aside={<History size={19}/>}>
       <div className="history-demo"><div><strong>월요일 오전 9시 · 지난주 매출 10% 감소 점검</strong><p>최근 8주를 DB에서 다시 조회한 이력과 데이터 부족 사례 1건을 준비합니다. 실제 과거 정기 실행과 구분되는 시연 기록이며, 자동 감시는 비활성 상태로 생성됩니다.</p></div>
       <button className="primary" disabled={seeding} onClick={()=>void prepare()}><Play size={15}/>{seeding?"과거 기간 조회 중…":"시연 이력 준비 / 불러오기"}</button></div>
       {notice&&<p className="app-success" role="status">{notice}</p>}
@@ -47,8 +47,8 @@ export default function AgentHistory({meta,agents,onRefresh,onOpenApp,onOpenAgen
     {result&&<div className="history-stats" aria-label="이력 집계"><div><span>조회 이력</span><strong>{result.total}건</strong></div>{["alert","normal","no_data","error"].map(s=><div key={s} className={s}><span>{statuses[s]}</span><strong>{result.counts[s]||0}건</strong></div>)}</div>}
     <Panel title="실행 보고서 목록" aside={<span className="muted">{result?timestamp(result.queriedAt):""}</span>}>
       {loading?<p className="muted" role="status">이력을 조회하고 있습니다…</p>:result?.items.length?result.items.map(r=><div key={r.id} className="history-record" data-testid="history-record">
-        <AgentRunReport run={r} meta={meta} agentName={r.agent_name} onOpenApp={()=>onOpenApp(r.app_id)}/>
-        <button className="history-agent-link" onClick={()=>onOpenAgent(r.agent_id)}><Bell size={14}/>감시 설정 열기</button>
+        <AgentRunReport run={r} meta={meta} agentName={r.agent_name} onOpenApp={()=>onOpenApp(r.app_id)} onInvestigate={onInvestigate}/>
+        <button className="history-agent-link" onClick={()=>onOpenAgent(r.agent_id)}><Bell size={14}/>업무 열기</button>
       </div>):<div className="app-preview-empty"><History size={30}/><h3>조회된 실행 이력이 없습니다</h3><p>시연 이력을 준비하거나 필터를 바꿔보세요. 감시 에이전트를 시험 실행해도 이력이 쌓입니다.</p></div>}
       <div className="history-pagination"><button disabled={loading||page<=1} onClick={()=>setPage(p=>p-1)}>이전 페이지</button><span aria-live="polite">{page} / {Math.max(1,result?.totalPages||1)} 페이지</span><button disabled={loading||!result||page>=result.totalPages} onClick={()=>setPage(p=>p+1)}>다음 페이지</button></div>
     </Panel>

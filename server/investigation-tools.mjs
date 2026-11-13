@@ -57,10 +57,13 @@ export async function validateScope(raw) {
     comparison: spec.comparison,
   };
 }
-export async function executeTool(name, scope, dimension) {
+export async function executeTool(name, scope, dimension, filters = {}) {
   if (!Object.hasOwn(TOOL_DEFINITIONS, name))
     bad("허용되지 않은 조사 도구입니다.");
   if (name === "inspect_catalog") return toolCatalog();
+  if ((filters.gradeFilter || filters.categoryFilter) &&
+      ["compare_app_conversion", "compare_budget"].includes(name))
+    bad("이 도구는 지정된 고객 등급·상품군 범위의 집계를 지원하지 않습니다.");
   const d = name === "compare_customer_grades" ? "grade" : dimension;
   if (!["store", "channel", "category", "day", "grade"].includes(d))
     bad("분석 축을 확인하세요.");
@@ -87,7 +90,7 @@ export async function executeTool(name, scope, dimension) {
       dimension: d,
       chart: d === "day" ? "line" : "bar",
     },
-    { strictCoverage: true },
+    { strictCoverage: true, ...filters },
   );
   return { ...result, queriedAt: result.queriedAt || new Date().toISOString() };
 }

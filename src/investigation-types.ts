@@ -40,6 +40,8 @@ export type Session = {
   updated_at: string;
   state: {
     mode: "live" | "demo";
+    task?: { agentId: string; runId: string; group: string; objective: string;
+      filters: { gradeFilter?: string; categoryFilter?: string } };
     messages: { id: string; role: string; text: string; at: string }[];
     rounds: Round[];
   };

@@ -76,6 +76,7 @@ const instructions = `한국어 백화점 DW 조사 에이전트입니다. 사�
 도구 정의와 DB 보유 기간만 사용하세요. 날짜는 DB latestDataDate 기준이며 지난주는 직전 완료 월~일입니다. 같은 조회를 반복하지 마세요. SQL을 생성하지 마세요. 각 query는 최대90일입니다. 최대6회 조회 후 finish하세요.
 결론과 후속 저장 요청은 조회 근거가 있어야 합니다. evidenceIds에는 제공된 evidence의 실제 id를 인용하고 현재 scope와 다른 기간/채널/점포 근거를 결론에 섞지 마세요. text에는 숫자를 쓰지 마세요(수치는 서버의 검증 표로 표시합니다). 확인 사실과 인과 원인을 혼동하지 말고 가설로 설명하세요. 데이터 부족이면 판단 보류를 안내하세요.
 사용자가 저장/매주 확인/감시 연결을 요청하면 proposal로 분석 화면과 매출 감소 감시 초안을 만들고 실제 저장되었다고 말하지 마세요. 저장과 활성화는 사용자 확인 버튼으로만 수행됩니다. draft는 제목과 매일/매주 주기·요일(일0 월1)·한국 시간 HH:mm·매출 상대 감소율을 정합니다. 미지정 기본은 매주 월09:00, 감소율10%입니다. tool/finish/clarify에서도 draft 기본값을 채우세요.`;
+const taskInstructions = `맡긴 업무(task)가 있으면 해당 그룹에 한정하여 조회 결과에 따라 도구·분석 축을 선택하세요. currentScope의 기간·점포·채널은 고정입니다. task.filters가 있으면 고객 등급/상품군 필터가 모든 집계에 적용됩니다. 이때 앱 전환율/예산 도구는 지원하지 않습니다. task.previous는 과거 관찰이며 현재 사실로 단정하지 마세요. task.objective를 참고해 확인 사실과 미확인 가설 및 다음 확인 사항을 정리하고 finish하세요. 자동 조사에서 저장 초안을 제안하지 마세요.`;
 const active = new Map(),
   recent = [];
 function append(session, text) {
@@ -267,7 +268,7 @@ export async function investigationStep(
       session.state.mode === "demo"
         ? demoDecision(session)
         : await call(
-            instructions,
+            instructions + "\n" + taskInstructions,
             {
               request: round.prompt,
               currentScope: round.scope,
@@ -275,6 +276,7 @@ export async function investigationStep(
               messages: session.state.messages.slice(-8),
               evidence: allSteps(session).slice(-12),
               remainingQueries: 6 - round.steps.length,
+              task: session.state.task || null,
             },
             decisionSchema,
             (url, options) =>
@@ -294,6 +296,8 @@ export async function investigationStep(
     )
       bad("AI 조사 응답 형식이 올바르지 않습니다.", 502);
     const scope = await validateScope(decision.scope);
+    if (session.state.task && scopeKey(scope) !== scopeKey(round.scope))
+      bad("맡긴 업무의 기간·점포·채널 범위를 벗어날 수 없습니다.", 502);
     if (round.lockedChannel && scope.channel !== round.lockedChannel)
       bad("AI가 사용자가 지정한 채널을 벗어났습니다. 다시 요청하세요.", 502);
     round.scope = scope;
@@ -313,7 +317,8 @@ export async function investigationStep(
           "같은 조회를 반복하려 하여 조사를 멈췄습니다. 범위를 바꿔 이어가세요.",
           502,
         );
-      const result = await runTool(decision.tool, scope, decision.dimension);
+      const result = await runTool(decision.tool, scope, decision.dimension,
+        session.state.task?.filters || {});
       round.steps.push({
         id: randomUUID(),
         tool: decision.tool,
@@ -351,6 +356,8 @@ export async function investigationStep(
         ],
       };
       if (decision.kind === "proposal") {
+        if (session.state.task?.filters?.gradeFilter || session.state.task?.filters?.categoryFilter)
+          bad("이 그룹에 한정된 조사는 대화에 보관됩니다. 분석 저장은 새 조사에서 범위를 지정하세요.");
         const d = decision.draft;
         const last = cited.at(-1),
           dimension = last.result.spec.dimension;

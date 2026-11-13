@@ -52,6 +52,8 @@ export type Config = {
   condition: string;
   threshold: number;
   period: string;
+  investigationMode?: "off" | "demo" | "live";
+  objective?: string;
 };
 export type Agent = {
   id: string;
@@ -60,6 +62,24 @@ export type Agent = {
   config: Config;
   enabled: boolean;
   next_run: string;
+  latestRun?: { status: string; created_at: string; summary?: string; findings: { state: string }[] };
+};
+export type Finding = {
+  key: string;
+  group: string;
+  state: "new" | "ongoing" | "recovered" | "deferred";
+  firstSeen: string;
+  lastSeen: string;
+  metric: Metric | null;
+  previousMetric: Metric | null;
+  previousRunId: string | null;
+  investigation?: {
+    mode: "off" | "demo" | "live";
+    status: string;
+    sessionId?: string;
+    summary?: string;
+    queryCount?: number;
+  };
 };
 export type Run = {
   id: string;
@@ -89,5 +109,7 @@ export type Run = {
     }[];
     steps?: string[];
     notes?: string[];
+    taskMode?: "off" | "demo" | "live";
+    findings?: Finding[];
   };
 };

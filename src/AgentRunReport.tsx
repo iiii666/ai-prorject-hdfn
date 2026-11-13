@@ -1,4 +1,5 @@
 import type { Run, Meta } from "./analysis-types";
+import TaskFindings from "./TaskFindings";
 import { DataTable, timestamp } from "./components";
 const fmt = (n: number | null | undefined, unit = "") =>
   n == null
@@ -13,7 +14,7 @@ const statuses: Record<string, string> = {
 };
 
 export const runKinds: Record<string,string>={test:"시험 실행",scheduled:"정기 실행",replay:"시연 · 과거 재현"};
-export default function AgentRunReport({run:r,meta,open=false,onOpenApp,agentName}:{run:Run;meta:Meta;open?:boolean;onOpenApp?:()=>void;agentName?:string}){
+export default function AgentRunReport({run:r,meta,open=false,onOpenApp,agentName,onInvestigate}:{run:Run;meta:Meta;open?:boolean;onOpenApp?:()=>void;agentName?:string;onInvestigate?:(id:string)=>void}){
 return (<details
                       className={`app-run ${r.status}`}
                       key={r.id}
@@ -62,6 +63,7 @@ return (<details
                           )}
                         </p>
                       )}
+                      {r.report.findings && r.report.config && <TaskFindings findings={r.report.findings} meta={meta} metric={r.report.config.metric} onInvestigate={onInvestigate}/>}
                       {r.report.rows && r.report.config && (
                         <DataTable
                           headers={["그룹", "현재", "비교", "증감률", "판정"]}
