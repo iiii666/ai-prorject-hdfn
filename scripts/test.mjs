@@ -8,6 +8,8 @@ const p = spawn(
     "tests/evidence.test.mjs",
     "tests/workspace.test.mjs",
     "tests/investigation.test.mjs",
+    "tests/task-investigations.test.mjs",
+    "tests/task-workflow.test.mjs",
   ],
   {
     stdio: "inherit",

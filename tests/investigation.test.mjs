@@ -441,3 +441,39 @@ test("HTTP sessions, scope steering, origin checks and explicit no-key behavior"
     await new Promise((r) => server.close(r));
   }
 });
+
+test("live decision schema restricts store values to current catalog IDs and explicit all-store scope", async () => {
+  const { decisionSchemaFor } = await import("../server/investigation-agent.mjs");
+  const catalog = { stores: [{ id: 1, name: "강남점" }, { id: 7, name: "판교점" }] };
+  const schema = decisionSchemaFor(catalog, ["verified-evidence"]);
+  assert.deepEqual(schema.properties.evidenceIds.items.enum, ["verified-evidence"]);
+  assert.ok(!new RegExp(schema.properties.text.pattern).test("매출 10% 감소"));
+  assert.deepEqual(schema.properties.scope.properties.store, { type: "string", enum: ["", "1", "7"] });
+  assert.ok(!schema.properties.scope.properties.store.enum.includes("전체"));
+  assert.ok(!schema.properties.scope.properties.store.enum.includes("강남점"));
+});
+
+test("finish and save proposal preserve verified scope even when unused model scope fields are placeholders", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() + 61000 });
+  const key = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-placeholder";
+  try {
+    for (const kind of ["finish", "proposal"]) {
+      let s = await make("live");
+      s = await investigationStep(s.id, { version: s.version }, { call: async (_s, i) => decision(i.currentScope) });
+      const scope = s.state.rounds[0].scope;
+      s = await investigationStep(s.id, { version: s.version }, {
+        call: async (_s, i) => decision({ ...i.currentScope, store: "전체", end: "" }, {
+          kind, text: "조회 근거를 바탕으로 분석을 정리했습니다.",
+          evidenceIds: i.evidence.map((e) => e.id),
+        }),
+      });
+      assert.equal(s.status, "completed");
+      assert.deepEqual(s.state.rounds[0].scope, scope);
+      if (kind === "proposal") {
+        assert.equal(s.state.rounds[0].proposal.spec.store, scope.store);
+        assert.equal(s.state.rounds[0].proposal.spec.end, scope.end);
+      }
+    }
+  } finally { if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key; }
+});

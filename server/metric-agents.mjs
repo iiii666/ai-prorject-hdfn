@@ -3,6 +3,7 @@ import { all, one, transaction, dateAdd, fixtureMode } from "./db.mjs";
 import { bad, METRICS } from "./app-plans.mjs";
 import { getApp, stamp } from "./app-store.mjs";
 import { appData } from "./app-data.mjs";
+import { validateDemoScenario, scenarioReport } from "./presentation-scenario.mjs";
 const decode = (r) => ({
   ...r,
   config: JSON.parse(r.config),
@@ -14,9 +15,17 @@ export async function getAgent(id) {
   return decode(r);
 }
 export async function listAgents() {
-  return (
+  const agents = (
     await all("SELECT * FROM metric_agents ORDER BY created_at DESC")
   ).map(decode);
+  const latest = await all("SELECT agent_id,status,created_at,report FROM (SELECT agent_id,status,created_at,report,ROW_NUMBER() OVER (PARTITION BY agent_id ORDER BY created_at DESC,id DESC) AS rn FROM metric_agent_runs) recent WHERE rn=1");
+  return agents.map((agent) => {
+    const run = latest.find((r) => r.agent_id === agent.id);
+    if (!run) return agent;
+    const report = JSON.parse(run.report);
+    return { ...agent, latestRun: { status: run.status, created_at: run.created_at,
+      summary: report.summary, findings: (report.findings || []).map((f) => ({ state: f.state })) } };
+  });
 }
 export function validateAgent(raw, spec) {
   if (
@@ -48,6 +57,13 @@ export function validateAgent(raw, spec) {
   if (!["rolling", "week"].includes(raw.period)) bad("감시 기간을 확인하세요.");
   if (spec.dimension === "day")
     bad("감시는 점포별·채널별·상품군별 앱에 연결하세요.");
+  const investigationMode = raw.investigationMode ?? "off";
+  if (!["off", "demo", "live"].includes(investigationMode))
+    bad("업무 조사 방식을 확인하세요.");
+  const objective = raw.objective ?? "변화가 큰 그룹을 조사하고 확인된 사실과 추가 확인할 가설을 구분해줘.";
+  if (typeof objective !== "string" || objective.trim().length < 3 || objective.length > 1000)
+    bad("맡길 업무는 3~1,000자로 입력하세요.");
+  const demoScenario = validateDemoScenario(raw.demoScenario, spec, investigationMode);
   return {
     name: raw.name.trim(),
     frequency: raw.frequency,
@@ -57,6 +73,9 @@ export function validateAgent(raw, spec) {
     condition: raw.condition,
     threshold: raw.threshold,
     period: raw.period,
+    investigationMode,
+    objective: objective.trim(),
+    ...(demoScenario ? { demoScenario } : {}),
   };
 }
 export function nextRun(config, after = new Date()) {
@@ -167,7 +186,7 @@ export async function investigate(app, config, now = new Date()) {
   }));
   const hits = evaluated.filter((r) => r.matched === true);
   const investigations = [];
-  if (config.metric === "sales")
+  if (config.metric === "sales" && (!config.investigationMode || config.investigationMode === "off"))
     for (const row of hits.slice(0, 10)) {
       const scoped = {
         ...spec,
@@ -226,7 +245,9 @@ export async function investigate(app, config, now = new Date()) {
     alertCount: hits.length,
     notes: [
       ...data.notes,
-      "추가 분석은 매출 감시에서 상품군·채널별 증감액을 조회합니다. 감소액은 기여도이며 원인을 입증하지 않습니다.",
+      config.investigationMode && config.investigationMode !== "off"
+        ? "추가 조사는 발견 그룹의 범위를 고정하고 결과에 따라 도구를 선택합니다. 해석은 원인을 입증하지 않습니다."
+        : "추가 분석은 매출 감시에서 상품군·채널별 증감액을 조회합니다. 감소액은 기여도이며 원인을 입증하지 않습니다.",
       "지표 정의: " + METRICS[config.metric].definition,
       "보고서는 실행 시점의 앱 버전과 설정을 보관합니다.",
     ],
@@ -243,7 +264,7 @@ export async function investigate(app, config, now = new Date()) {
 }
 export async function runAgent(
   id,
-  { kind = "test", now = new Date(), slot } = {},
+  { kind = "test", now = new Date(), slot, demoPhase = 2 } = {},
 ) {
   const agent = await getAgent(id),
     app = await getApp(agent.app_id);
@@ -263,7 +284,7 @@ export async function runAgent(
   )
     bad("이미 실행 중입니다.", 409);
   const runId = randomUUID(),
-    key = kind === "scheduled" ? slot : randomUUID();
+    key = kind === "scheduled" || (kind === "replay" && slot) ? slot : randomUUID();
   try {
     await transaction(async (tx) => {
       const current = await tx.one(
@@ -297,13 +318,18 @@ export async function runAgent(
   } catch (e) {
     if (
       e.code === "23505" ||
+      (fixtureMode && [1555, 2067].includes(e.errcode)) ||
       String(e.code).startsWith("SQLITE_CONSTRAINT")
     )
       return null;
     throw e;
   }
   try {
-    const report = await investigate(app, agent.config, now);
+    const report = agent.config.demoScenario
+      ? await scenarioReport(app, agent.config, demoPhase)
+      : await investigate(app, agent.config, now);
+    const { enrichTaskReport } = await import("./task-investigations.mjs");
+    await enrichTaskReport({ agent, app, report, runId, kind, now });
     await transaction((tx) =>
       tx.run(
         "UPDATE metric_agent_runs SET status=?,report=?,finished_at=? WHERE id=?",

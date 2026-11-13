@@ -62,17 +62,21 @@ export const server = createServer(async (req, res) => {
           );
       }
       try {
-        return json(
-          res,
-          p.startsWith("/api/investigations")
+        const result = p.startsWith("/api/investigations")
             ? await investigationApi(p, req.method, () => body(req))
             : await workspaceApi(
                 p,
                 req.method,
                 () => body(req),
                 url.searchParams,
-              ),
-        );
+              );
+        if (result?.download) {
+          res.writeHead(200, { "Content-Type": result.download.contentType,
+            "Content-Disposition": `attachment; filename="${result.download.filename}"`,
+            "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+          return res.end(Buffer.from(result.download.bytes));
+        }
+        return json(res, result);
       } catch (e) {
         if (e instanceof AnalysisError)
           return json(res, { error: e.message }, e.status);

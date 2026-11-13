@@ -7,20 +7,19 @@ import {
   Play,
   Search,
   CheckCircle2,
-  History,
   Bookmark,
   Bell,
 } from "lucide-react";
 import { request, type Bootstrap } from "./api";
-import type { Meta, Agent } from "./analysis-types";
+import type { Meta } from "./analysis-types";
 import type {
   Session,
   SessionList,
   Scope,
   Proposal,
 } from "./investigation-types";
-import { SavedAnalyses, SavedMonitors } from "./SavedInvestigationOutputs";
-import AgentHistory from "./AgentHistory";
+import { SavedAnalyses } from "./SavedInvestigationOutputs";
+import AssignedTasks from "./AssignedTasks";
 import AnalysisPreview from "./AnalysisPreview";
 import { Panel, timestamp } from "./components";
 import "./my-apps.css";
@@ -46,7 +45,7 @@ const tools: Record<string, string> = {
   compare_app_conversion: "앱 전환율 비교",
   compare_budget: "예산·목표 비교",
 };
-type Tab = "chat" | "saved" | "monitors" | "history";
+type Tab = "chat" | "tasks";
 export default function InvestigationWorkspace({
   bootstrap,
 }: {
@@ -55,7 +54,7 @@ export default function InvestigationWorkspace({
   const [tab, setTab] = useState<Tab>("chat"),
     [meta, setMeta] = useState<Meta | null>(null),
     [configured, setConfigured] = useState(false),
-    [agents, setAgents] = useState<Agent[]>([]);
+    [showSaved, setShowSaved] = useState(false);
   const [sessions, setSessions] = useState<SessionList[]>([]),
     [session, setSession] = useState<Session | null>(null),
     [prompt, setPrompt] = useState(
@@ -92,12 +91,10 @@ export default function InvestigationWorkspace({
     if (!scopeDirty.current) setScope(s.state.rounds.at(-1)!.scope);
   }
   async function refresh() {
-    const [a, m, l] = await Promise.all([
-      request<Agent[]>("/api/metric-agents"),
+    const [m, l] = await Promise.all([
       request<Meta>("/api/my-apps/meta"),
       request<SessionList[]>("/api/investigations"),
     ]);
-    setAgents(a);
     setMeta(m);
     setSessions(l);
   }
@@ -242,10 +239,9 @@ export default function InvestigationWorkspace({
       <div className="invest-intro">
         <div>
           <span>RETAIL INVESTIGATION AGENT</span>
-          <h2>질문을 따라, 근거를 찾아 조사합니다</h2>
+          <h2>궁금한 건 물어보고, 반복할 일은 맡기세요</h2>
           <p>
-            조회 결과에 따라 다음 도구를 선택합니다. 조사 도중에도 범위를
-            바꾸거나 후속 질문을 보낼 수 있습니다.
+            AI가 근거를 찾아 조사하고, 맡긴 업무의 변화와 회복 여부를 이어서 확인합니다.
           </p>
         </div>
         <Bot size={38} />
@@ -257,10 +253,8 @@ export default function InvestigationWorkspace({
       >
         {(
           [
-            ["chat", "조사 대화", Search],
-            ["saved", "저장한 분석", Bookmark],
-            ["monitors", "정기 감시", Bell],
-            ["history", "감시 실행 이력", History],
+            ["chat", "AI에게 조사하기", Search],
+            ["tasks", "맡긴 업무", Bell],
           ] as const
         ).map(([id, title, Icon]) => (
           <button
@@ -269,7 +263,7 @@ export default function InvestigationWorkspace({
             aria-selected={tab === id}
             onClick={() => {
               setTab(id);
-              void refresh();
+              void refresh().catch((e) => setError(e.message));
             }}
           >
             <Icon size={16} />
@@ -282,26 +276,27 @@ export default function InvestigationWorkspace({
           {error}
         </p>
       )}
-      {tab === "saved" ? (
-        <SavedAnalyses meta={meta} selectedId={selectedOutput} />
-      ) : tab === "monitors" ? (
-        <SavedMonitors meta={meta} selectedId={selectedAgent} />
-      ) : tab === "history" ? (
-        <AgentHistory
-          meta={meta}
-          agents={agents}
-          onRefresh={refresh}
-          onOpenApp={(id) => {
-            setSelectedOutput(id);
-            setTab("saved");
-          }}
-          onOpenAgent={(id) => {
-            setSelectedAgent(id);
-            setTab("monitors");
-          }}
-        />
+      {tab === "tasks" ? (
+        <AssignedTasks meta={meta} selectedId={selectedAgent}
+          onInvestigate={(id) => void open(id).catch((e) => setError(e.message))}
+          onOpenApp={(id) => { setSelectedOutput(id); setShowSaved(true); setTab("chat"); }}
+          onNew={() => {
+            generation.current++; latest.current = null; setSession(null);
+            setDraft(null); setSelectedEvidence(""); setAuto(true); setCustomScope(false);
+            scopeDirty.current = false; setMode(configured ? "live" : "demo");
+            setPrompt("매주 점포별 매출 변화를 조사하고, 감소한 곳은 추가로 살펴봐줘. 이 결과를 저장하고 매주 확인해줘.");
+            setShowSaved(false); setTab("chat");
+          }}/>
       ) : (
         <>
+          <div className="invest-secondary-actions"><button aria-expanded={showSaved} onClick={() => setShowSaved(!showSaved)}><Bookmark size={15}/>{showSaved ? "보관함 닫기" : "저장한 분석 보관함"}</button></div>
+          {showSaved && <SavedAnalyses meta={meta} selectedId={selectedOutput}/>}
+          {session?.state.task && <div className="task-conversation-context">
+            <strong>{session.state.task.group} · 맡긴 업무의 후속 조사</strong>
+            <p>{session.state.task.objective}</p>
+            {(session.state.task.filters.gradeFilter || session.state.task.filters.categoryFilter) && <small>모든 조회는 {session.state.task.filters.gradeFilter || session.state.task.filters.categoryFilter} 그룹에 한정됩니다.</small>}
+            <button onClick={() => { setSelectedAgent(session.state.task!.agentId); setTab("tasks"); }}>업무로 돌아가기</button>
+          </div>}
           <div className="invest-mode">
             <label>
               새 조사 모드
@@ -314,12 +309,14 @@ export default function InvestigationWorkspace({
                 <option value="live" disabled={!configured}>
                   실제 AI 도구 선택
                 </option>
-                <option value="demo">샘플 시연 · 규칙 기반 도구 선택</option>
+                <option value="demo">규칙 기반 도구 선택</option>
               </select>
             </label>
             <p>
-              {session?.state.mode === "demo" || (!session && mode === "demo")
-                ? "시연은 실제 DB를 조회하지만 모델을 호출하지 않습니다. 결과에 반응하는 제한된 규칙으로 도구를 선택합니다."
+              {session?.state.task?.demonstration
+                ? "업무 분석 데이터를 바탕으로 정해진 규칙에 따라 조사합니다."
+                : session?.state.mode === "demo" || (!session && mode === "demo")
+                ? "규칙 기반 조사는 모델을 호출하지 않습니다. 결과에 반응하는 제한된 규칙으로 도구를 선택합니다."
                 : "AI가 읽기 전용 도구를 선택합니다. 질문과 집계 근거가 OpenAI로 전송됩니다."}
             </p>
           </div>
@@ -382,7 +379,7 @@ export default function InvestigationWorkspace({
                     <h3>어떤 변화가 궁금하신가요?</h3>
                     <p>
                       매출 감소 조사부터 시작해 모바일·고객 등급을 더 살펴보고,
-                      결과를 정기 감시로 연결해보세요.
+                      결과를 저장하고 반복해서 확인할 업무로 맡겨보세요.
                     </p>
                   </div>
                 )}
@@ -548,7 +545,7 @@ export default function InvestigationWorkspace({
                     <div className="invest-conclusion">
                       <strong>
                         {session.state.mode === "demo"
-                          ? "시연 해석"
+                          ? "조사 결과"
                           : "AI 해석"}{" "}
                         · 원인은 검증이 필요한 가설
                       </strong>
@@ -569,14 +566,15 @@ export default function InvestigationWorkspace({
                     <div className="invest-export-summary">
                       <p>
                         {r.proposal.saved
-                          ? "분석 화면과 정기 감시를 저장했습니다."
-                          : "분석 화면과 정기 감시 초안이 준비됐습니다."}
+                          ? "분석을 보관하고 반복 업무를 저장했습니다."
+                          : "분석 보관과 반복 업무 초안이 준비됐습니다."}
                       </p>
                       {r.proposal.saved ? (
                         <button
                           onClick={() => {
                             setSelectedOutput(r.proposal!.saved!.appId);
-                            setTab("saved");
+                            setShowSaved(true);
+                            setTab("chat");
                           }}
                         >
                           저장한 분석 열기
@@ -585,14 +583,15 @@ export default function InvestigationWorkspace({
                         i === session.state.rounds.length - 1 && (
                           <button
                             onClick={() => {
-                              setDraft(structuredClone(r.proposal!));
+                              setDraft({ ...structuredClone(r.proposal!), config: { ...r.proposal!.config, investigationMode: session.state.mode, objective: session.state.rounds[0].prompt } });
                               setDraftEnabled(false);
                             }}
                           >
-                            저장·감시 초안 검토
+                            업무 맡기기 · 초안 확인
                           </button>
                         )
                       )}
+                      {r.proposal.saved && <button onClick={() => { setSelectedAgent(r.proposal!.saved!.agentId); setTab("tasks"); }}>맡긴 업무 열기</button>}
                     </div>
                   )}
                 </div>
@@ -631,7 +630,7 @@ export default function InvestigationWorkspace({
             <section className="invest-evidence">
               <div className="invest-section-heading">
                 <h3>조회 근거</h3>
-                <span className="app-chip">서버 집계</span>
+                <span className="app-chip">{session?.state.task?.demonstration ? "집계 근거" : "서버 집계"}</span>
               </div>
               {evidence?.result.spec ? (
                 <>
@@ -654,10 +653,10 @@ export default function InvestigationWorkspace({
             </section>
           </div>
           {draft && session && (
-            <Panel title="저장·정기 감시 초안 검토">
+            <Panel title="업무 맡기기 · 설정 확인">
               <p className="app-warning">
                 저장 전 설정을 확인하세요. 분석 화면은 현재 조사 기간을 고정해
-                보관하고, 정기 감시는 매 실행 시 최신 완료 주를 조회합니다.
+                보관하고, 맡긴 업무는 실행할 때마다 비교 기간을 다시 계산합니다.
               </p>
               <fieldset className="invest-form" disabled={sending}>
                 <label>
@@ -723,6 +722,19 @@ export default function InvestigationWorkspace({
                   />
                 </label>
                 <label>
+                  조사 방식
+                  <select value={draft.config.investigationMode || mode} onChange={(e) => setDraft({ ...draft, config: { ...draft.config, investigationMode: e.target.value as "live" | "demo" | "off" } })}>
+                    <option value="live" disabled={!configured}>실제 AI 조사</option>
+                    <option value="demo">규칙 기반 조사</option>
+                    <option value="off">규칙 점검</option>
+                  </select>
+                </label>
+                <label className="task-wide">
+                  맡길 업무
+                  <textarea maxLength={1000} value={draft.config.objective || session.state.rounds[0].prompt} onChange={(e) => setDraft({ ...draft, config: { ...draft.config, objective: e.target.value } })}/>
+                </label>
+                <p className="task-wide app-definition">발견한 그룹 중 최대 3개를 추가 조사하고 이전 실행과 비교합니다. 실제 AI 모드는 집계 근거를 OpenAI로 전송하며, 규칙 기반 조사는 모델을 호출하지 않습니다.</p>
+                <label>
                   감소율 임계값 (%)
                   <input
                     type="number"
@@ -746,7 +758,7 @@ export default function InvestigationWorkspace({
                     checked={draftEnabled}
                     onChange={(e) => setDraftEnabled(e.target.checked)}
                   />
-                  정기 감시 활성화
+                  업무 활성화
                 </label>
                 <div className="invest-actions">
                   <button
@@ -776,7 +788,7 @@ export default function InvestigationWorkspace({
                       }
                     }}
                   >
-                    확인하고 분석·감시 저장
+                    확인하고 업무 맡기기
                   </button>
                   <button onClick={() => setDraft(null)}>닫기</button>
                 </div>

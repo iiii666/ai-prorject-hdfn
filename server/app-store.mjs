@@ -6,6 +6,7 @@ const ddl = [
   `CREATE TABLE IF NOT EXISTS analysis_app_versions (id VARCHAR(36) PRIMARY KEY, app_id VARCHAR(36) NOT NULL, version INTEGER NOT NULL, spec TEXT NOT NULL, prompt TEXT NOT NULL, created_at VARCHAR(32) NOT NULL, UNIQUE(app_id,version), FOREIGN KEY(app_id) REFERENCES analysis_apps(id) ON DELETE CASCADE)`,
   `CREATE TABLE IF NOT EXISTS metric_agents (id VARCHAR(36) PRIMARY KEY, app_id VARCHAR(36) NOT NULL, name VARCHAR(80) NOT NULL, config TEXT NOT NULL, enabled INTEGER NOT NULL, next_run VARCHAR(32) NOT NULL, created_at VARCHAR(32) NOT NULL, updated_at VARCHAR(32) NOT NULL, FOREIGN KEY(app_id) REFERENCES analysis_apps(id) ON DELETE CASCADE)`,
   `CREATE TABLE IF NOT EXISTS metric_agent_runs (id VARCHAR(36) PRIMARY KEY, agent_id VARCHAR(36) NOT NULL, slot VARCHAR(64) NOT NULL, kind VARCHAR(16) NOT NULL, status VARCHAR(20) NOT NULL, report TEXT NOT NULL, created_at VARCHAR(32) NOT NULL, finished_at VARCHAR(32), UNIQUE(agent_id,slot), FOREIGN KEY(agent_id) REFERENCES metric_agents(id) ON DELETE CASCADE)`,
+  `CREATE TABLE IF NOT EXISTS task_reviews (id VARCHAR(36) PRIMARY KEY,agent_id VARCHAR(36) NOT NULL,run_id VARCHAR(36) NOT NULL,group_key VARCHAR(100) NOT NULL,state TEXT NOT NULL,version INTEGER NOT NULL,updated_at VARCHAR(32) NOT NULL,UNIQUE(agent_id,run_id,group_key),FOREIGN KEY(agent_id) REFERENCES metric_agents(id) ON DELETE CASCADE,FOREIGN KEY(run_id) REFERENCES metric_agent_runs(id) ON DELETE CASCADE)`,
 ];
 export async function initializeApps() {
   if (fixtureMode) for (const sql of ddl) db.exec(sql);

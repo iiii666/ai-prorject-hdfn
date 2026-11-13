@@ -31,6 +31,7 @@ export type Metric = {
   difference: number | null;
 };
 export type Data = {
+  demonstration?: Demonstration;
   spec: Spec;
   range: {
     start: string;
@@ -43,6 +44,7 @@ export type Data = {
   notes: string[];
   queriedAt: string;
 };
+export type Demonstration = { id: string; anchorEnd: string; phase: number; description: string };
 export type Config = {
   name: string;
   frequency: string;
@@ -52,6 +54,9 @@ export type Config = {
   condition: string;
   threshold: number;
   period: string;
+  investigationMode?: "off" | "demo" | "live";
+  objective?: string;
+  demoScenario?: { id: string; anchorEnd: string };
 };
 export type Agent = {
   id: string;
@@ -60,6 +65,24 @@ export type Agent = {
   config: Config;
   enabled: boolean;
   next_run: string;
+  latestRun?: { status: string; created_at: string; summary?: string; findings: { state: string }[] };
+};
+export type Finding = {
+  key: string;
+  group: string;
+  state: "new" | "ongoing" | "recovered" | "deferred";
+  firstSeen: string;
+  lastSeen: string;
+  metric: Metric | null;
+  previousMetric: Metric | null;
+  previousRunId: string | null;
+  investigation?: {
+    mode: "off" | "demo" | "live";
+    status: string;
+    sessionId?: string;
+    summary?: string;
+    queryCount?: number;
+  };
 };
 export type Run = {
   id: string;
@@ -68,6 +91,7 @@ export type Run = {
   created_at: string;
   finished_at: string;
   report: {
+    demonstration?: Demonstration;
     replay?: { asOf: string; source: string; description: string };
     summary?: string;
     appTitle?: string;
@@ -89,5 +113,7 @@ export type Run = {
     }[];
     steps?: string[];
     notes?: string[];
+    taskMode?: "off" | "demo" | "live";
+    findings?: Finding[];
   };
 };

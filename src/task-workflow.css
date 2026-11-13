@@ -1,0 +1,61 @@
+.task-workflow { background:#fff; border:1px solid #dbe5f1; border-radius:14px; overflow:hidden; min-width:0; color:#3b577b; }
+.review-heading { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:24px; background:#f2f7fd; }
+.review-heading span { font-size:9px; letter-spacing:1.6px; font-weight:700; color:#7692b6; }
+.review-heading h3 { font-size:19px; margin:8px 0; color:#29476e; }
+.review-heading p { font-size:12px; line-height:1.8; margin:0; color:#7489a6; }
+.review-heading > svg { color:#6689bc; flex-shrink:0; }
+.review-context-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:14px 24px; border-bottom:1px solid #e6edf5; font-size:11px; color:#7890ad; }
+.review-context-bar label { display:flex; align-items:center; gap:10px; }
+.task-workflow select { border:1px solid #d5e0ef; border-radius:7px; background:white; color:#45638c; padding:8px 10px; max-width:100%; font-size:12px; }
+.review-progress { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; padding:18px 20px 0; }
+.review-progress button { display:flex; align-items:center; gap:7px; text-align:left; background:#f5f7fb; color:#7f91aa; padding:10px 7px; border:1px solid transparent; border-radius:7px; font-size:11px; line-height:1.5; }
+.review-progress button > span { display:flex; align-items:center; justify-content:center; width:21px; height:21px; border-radius:50%; background:#e5edf8; color:#5f7fa9; flex-shrink:0; font-size:10px; }
+.review-progress button[aria-current="step"] { background:#eaf2ff; border-color:#c6d9fa; color:#3267b4; font-weight:700; }
+.review-stage { padding:24px; min-width:0; }
+.review-kicker { color:#7d96b9; font-size:10px; letter-spacing:.8px; }
+.review-stage h4 { font-size:17px; color:#304f78; margin:12px 0; line-height:1.7; }
+.review-stage p { font-size:12px; line-height:1.95; overflow-wrap:anywhere; }
+.review-metrics { display:flex; flex-wrap:wrap; gap:30px; padding:19px; background:#f7f9fd; border-radius:9px; margin:18px 0; }
+.review-metrics > div { display:grid; gap:8px; }
+.review-metrics small { font-size:11px; color:#8a9bb3; }
+.review-metrics strong { font-size:23px; color:#315b8e; }
+.review-note { border:1px solid #dfe9f5; background:#f7faff; border-radius:9px; padding:14px 16px; margin:15px 0; font-size:12px; line-height:1.9; }
+.review-note strong { font-size:11px; color:#5579a5; }
+.review-note p { margin:6px 0 0; }
+.task-workflow button.primary { display:inline-flex; align-items:center; justify-content:center; gap:7px; background:#3e76dd; border:1px solid #3e76dd; border-radius:8px; padding:11px 15px; color:white; font-size:12px; line-height:1.5; }
+.review-next { margin-top:20px; }
+.review-field { display:grid; gap:9px; font-size:12px; color:#617fa4; margin:16px 0; }
+.review-field textarea { min-height:95px; width:100%; box-sizing:border-box; border:1px solid #d7e2f0; border-radius:8px; padding:12px; font:inherit; line-height:1.9; resize:vertical; color:#3e5b80; background:white; }
+.review-choices { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.review-choices button, .review-inline-actions button { border:1px solid #d6e3f6; border-radius:20px; padding:9px 12px; background:#f8fbff; color:#5076a8; font-size:11px; line-height:1.6; }
+.review-chat-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.review-mode-note { color:#8597b0; font-size:10px !important; }
+.review-agent-intro { display:flex; align-items:flex-start; gap:12px; background:#eff5ff; border-radius:10px; padding:16px; margin:20px 0; }
+.review-agent-intro > svg { flex-shrink:0; margin-top:5px; }
+.review-agent-intro p { margin:0; }
+.review-messages { display:grid; gap:12px; max-height:420px; overflow:auto; padding:3px; }
+.review-messages article { background:#f3f6fa; padding:15px; border-radius:10px; }
+.review-messages article.user { background:#eaf1ff; margin-left:24px; }
+.review-messages strong { color:#6c89af; font-size:10px; }
+.review-messages p { margin:6px 0 0; white-space:pre-wrap; }
+.review-compose { display:flex; align-items:flex-end; gap:10px; margin:15px 0; }
+.review-compose .review-field { flex:1; min-width:0; margin:0; }
+.review-compose > button { flex-shrink:0; }
+.review-evidence { border:1px solid #e0e8f3; border-radius:8px; padding:13px; margin-top:18px; font-size:12px; }
+.review-evidence summary { cursor:pointer; color:#6281aa; line-height:1.8; }
+.review-evidence > details { padding:12px 0; border-bottom:1px solid #edf1f7; }
+.review-evidence .app-preview { margin-top:15px; }
+.review-evidence .app-preview-heading h2 { font-size:14px; }
+.review-evidence .app-chart { height:210px; }
+.review-decision-options { display:grid; gap:10px; margin:18px 0; }
+.review-decision-options label { display:flex; align-items:center; gap:10px; border:1px solid #dfe7f3; padding:14px; border-radius:8px; font-size:12px; cursor:pointer; }
+.review-decision-options label:has(input:checked) { border-color:#a4c0f0; background:#f4f8ff; }
+.review-report-preview { border:1px solid #dce5f0; padding:24px; border-radius:10px; margin-top:20px; background:#fcfdff; min-width:0; }
+.review-report-preview > div:first-child { display:flex; align-items:center; gap:12px; }
+.review-report-preview h4 { font-size:16px; }
+.review-report-preview h5 { font-size:12px; margin:24px 0 8px; color:#385e8a; }
+.review-report-preview small { color:#8295af; line-height:1.8; }
+.review-success { color:#2f8c6e; }
+.review-footer { border-top:1px solid #edf1f6; padding:13px 24px; color:#92a2b8; font-size:10px; display:flex; align-items:center; gap:7px; line-height:1.7; }
+.task-workflow > .analysis-error, .task-workflow > p { margin-inline:24px; }
+@media(max-width:640px) { .review-heading,.review-stage { padding:18px 14px; } .review-heading h3 { font-size:17px; } .review-context-bar { padding:13px 14px; } .review-progress { padding:14px 10px 0; gap:4px; } .review-progress button { flex-direction:column; text-align:center; font-size:10px; padding:8px 3px; } .review-metrics { gap:20px; } .review-metrics strong { font-size:19px; } .review-compose { align-items:stretch; flex-direction:column; } .review-report-preview { padding:15px; } .review-footer { padding:12px 14px; } }

@@ -1,4 +1,4 @@
-import type { Data, Spec, Config } from "./analysis-types";
+import type { Data, Spec, Config, Demonstration } from "./analysis-types";
 export type Scope = {
   days: number;
   end: string;
@@ -7,13 +7,14 @@ export type Scope = {
   comparison: string;
 };
 export type Step = {
+  source?: "stored_report";
   id: string;
   tool: string;
   dimension: string;
   reason: string;
   scope: Scope;
   at: string;
-  result: Data & { tools?: Record<string, string> };
+  result: Data & { tools?: Record<string, string>; history?: { runId: string; range: Data["range"]; summary: string; rows: Data["rows"] }[] };
 };
 export type Proposal = {
   id: string;
@@ -29,7 +30,8 @@ export type Round = {
   status: string;
   steps: Step[];
   error?: string;
-  report?: { summary: string; evidenceIds: string[]; notes: string[] };
+  followUpQuestion?: string;
+  report?: { summary: string; evidenceIds: string[]; notes: string[]; followUpQuestion?: string; suggestedActions?: string[] };
   proposal?: Proposal;
 };
 export type Session = {
@@ -40,6 +42,8 @@ export type Session = {
   updated_at: string;
   state: {
     mode: "live" | "demo";
+    task?: { agentId: string; runId: string; group: string; groupKey?: string; objective: string; demonstration?: Demonstration; businessContext?: { note: string; at: string } | null;
+      filters: { gradeFilter?: string; categoryFilter?: string } };
     messages: { id: string; role: string; text: string; at: string }[];
     rounds: Round[];
   };

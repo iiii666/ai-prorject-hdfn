@@ -45,7 +45,7 @@ export async function getInvestigation(id) {
   if (!r) bad("조사 대화를 찾을 수 없습니다.", 404);
   return decode(r);
 }
-export async function createInvestigation(input) {
+export async function createInvestigation(input, { task } = {}) {
   const prompt = promptText(input?.prompt);
   if (!["live", "demo"].includes(input.mode)) bad("조사 모드를 확인하세요.");
   if (input.mode === "live" && !process.env.OPENAI_API_KEY)
@@ -65,6 +65,7 @@ export async function createInvestigation(input) {
   );
   const state = {
     mode: input.mode,
+    ...(task ? { task } : {}),
     messages: [{ id: randomUUID(), role: "user", text: prompt, at: now }],
     rounds: [
       {
